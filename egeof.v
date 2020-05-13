@@ -658,6 +658,32 @@ Proof.
   assumption.
 Qed.
 
+Lemma circ_rot_lt  : forall x y cx cy r φ,
+    (x - cx)² + (y - cy)² < r² -> 
+    let rcx := cx * cos φ - cy * sin φ in
+    let rcy := cx * sin φ + cy * cos φ in
+    let rx := x * cos φ - y * sin φ in
+    let ry := x * sin φ + y * cos φ in
+    (rx - rcx)² + (ry - rcy)² < r².
+Proof.
+  intros.
+  repeat rewrite Rsqr_minus.
+  unfold rx, ry, rcx, rcy.
+  repeat rewrite Rsqr_minus.
+  repeat rewrite Rsqr_plus.
+  repeat rewrite Rsqr_mult.
+  setl ((x² * ((sin φ)² + (cos φ)²)
+         + cx² * ((sin φ)²+ (cos φ)²)
+           - 2 * x * cx * ((sin φ)² + (cos φ)²))
+        + (y² * ((sin φ)² + (cos φ)²)
+           + cy² * ((sin φ)² + (cos φ)²)
+             - 2 * y * cy * ((sin φ)² + (cos φ)²))).
+  rewrite sin2_cos2.
+  arn.
+  repeat rewrite <- Rsqr_minus.
+  assumption.
+Qed.
+
 Lemma circ_safe_std : forall x x0 y r,
     0 < r ->
     (x + x0)² + (y - r)² <= r² -> 
@@ -674,6 +700,24 @@ Proof.
     try lra.
   apply (Rmult_le_reg_l 2); try lra.
   apply (Rmult_le_reg_r r); try lra.
+Qed.
+
+Lemma circ_safe_std_lt : forall x x0 y r,
+    0 < r ->
+    (x + x0)² + (y - r)² < r² -> 
+    0 < y.
+Proof.
+  intros *.
+  intros zltr ic.
+  rewrite Rsqr_minus in ic.
+  specialize (Rle_0_sqr (x+x0)) as zlex2.
+  specialize (Rle_0_sqr y) as zley2.
+  assert (0 <= (x+x0)² + y²) as zlex2y2; 
+    try (apply Rplus_le_le_0_compat; assumption).
+  assert ((x+x0)² + y² <= 2 * y * r) as ict;
+    try lra.
+  apply (Rmult_lt_reg_l 2); try lra.
+  apply (Rmult_lt_reg_r r); try lra.
 Qed.
 
 
@@ -760,11 +804,103 @@ Proof.
   eapply rgt0.
   eapply ci.
 Qed.
+
+Lemma linear_dominates_circle_lt : forall x y mx my px py r,
+    r > 0 ->
+    ~(mx = 0 /\ my = 0) ->
+    let M := sqrt (my² + mx²) in
+    (x - (px + (- my / M * r)))² + (y - (py + (mx / M * r)))² < r² ->
+    0 < mx * (y - py) - my * (x - px).
+Proof.
+  intros *.
+  intros rgt0 no M ci.
+
+  assert (0 < M) as mgt0. {
+    unfold M.
+    clear ci rgt0 x y px py r M.
+    apply sqrt_lt_R0.
+    specialize (Rle_0_sqr my) as my2.
+    specialize (Rle_0_sqr mx) as mx2.
+    destruct my2 as [ylt |yeq].
+    + apply Rplus_lt_le_0_compat; try assumption.
+    + destruct mx2 as [xlt |xeq].
+      ++ rewrite <- yeq.
+         lra.
+      ++ exfalso.
+         apply no.
+         split.
+         +++ unfold Rsqr in xeq.
+             symmetry in xeq.
+             apply Rmult_integral in xeq.
+             destruct xeq; assumption.
+         +++ unfold Rsqr in yeq.
+             symmetry in yeq.
+             apply Rmult_integral in yeq.
+             destruct yeq; assumption. }
+
+(*  change (0 <= safe_pt px py mx my x y). *)
+  rewrite sf_std.
+
+  unfold atan2 in *.
+  destruct pre_atan2 as [γ [grng [yd xd]]].
+  change (my = M * sin γ) in yd.
+  change (mx = M * cos γ) in xd.
+
+  set (Y := - (x - px) * sin γ + (y - py) * cos γ) in *.
+  set (X := (x - px) * cos γ + (y - py) * sin γ) in *.
+
+(*  change (0 <= safe_pt 0 0 M 0 X Y). *)
   
+  assert (x - (px + - my / M * r) = (x - px) - (- my / M * r)) as id;
+    [field; lra | rewrite id in ci; clear id].
+  assert (y - (py + mx / M * r) = (y - py) - mx / M * r) as id;
+    [field; lra | rewrite id in ci; clear id].
+  
+  rewrite xd, yd in *.
+  apply (circ_rot_lt (x - px) (y - py) _ _ r (-γ)) in ci.
+  rewrite cos_neg, sin_neg in *.
+
+  assert (- (M * sin γ) / M * r * cos γ - M * cos γ / M * r * - sin γ=
+          0) as id; try (field; lra).
+  rewrite id in ci.
+  clear id.
+
+  assert (- (M * sin γ) / M * r * - sin γ + M * cos γ / M * r * cos γ =
+          r * ((sin γ)² + (cos γ)²)) as id; try (unfold Rsqr; field; lra).
+  rewrite id, sin2_cos2, Rmult_1_r in ci.
+  clear id.
+  
+  assert ((x - px) * cos γ - (y - py) * - sin γ = X) as id;
+    try (unfold X; field).
+  rewrite id in ci; clear id.
+  assert ((x - px) * - sin γ + (y - py) * cos γ = Y) as id;
+    try (unfold Y; field).
+  rewrite id in ci; clear id.
+  fieldrewrite ((M * sin γ)² + (M * cos γ)²)
+               (M² * ((sin γ)² + (cos γ)²)).
+  rewrite sin2_cos2.
+  arn.
+  rewrite sqrt_Rsqr; try lra.
+  apply (Rmult_lt_reg_r (/ M)); try zltab.
+  setl 0; try lra.
+  setr Y; try lra.
+  eapply circ_safe_std_lt.
+  eapply rgt0.
+  eapply ci.
+Qed.
+
 
 Lemma lin_pt_ineq : forall mx my px py qx qy x y,
     0 <= mx * (y - py) - my * (x - px) <->
     mx * (py - qy) - my * (px - qx) <= mx * (y - qy) - my * (x - qx).
+Proof.
+  intros.
+  lra.
+Qed.
+
+Lemma lin_pt_ineq_lt : forall mx my px py qx qy x y,
+    0 < mx * (y - py) - my * (x - px) <->
+    mx * (py - qy) - my * (px - qx) < mx * (y - qy) - my * (x - qx).
 Proof.
   intros.
   lra.
@@ -1940,6 +2076,8 @@ These correspond to Theorems 1 and 2 in the paper.
   Axiom osc_circ_approx : forall p s (zlts : 0 < s),
       s <= p -> (Fx a p - occx a s)² + (Fy a p - occy a s)² <= (oscr a s)².
 
+  Axiom osc_circ_approx_lt : forall p s (zlts : 0 < s),
+      s < p -> (Fx a p - occx a s)² + (Fy a p - occy a s)² < (oscr a s)².
     
 (** The function euler_spiral_tangent_pt compute the value of s for
   which the direction of the derivative d/ds (Fx a s, Fy a s) matches
@@ -5626,1423 +5764,7 @@ Qed.
 
 
 
-  Lemma sf_2deriv_neg_posN_mxne0 :
-    forall N (mxne0 : 0 <> mx)
-           (Nge0 : IZR N >= 0),
-      let s := estp N in
-      Derive_n sf 2 s < 0 ->
-      ((Z.Even N /\ mx < 0 /\ my <= 0) \/ (Z.Even N /\ 0 < mx /\ my < 0) \/
-       (Z.Odd N /\ 0 < mx /\ 0 <= my) \/ (Z.Odd N /\ mx < 0 /\ 0 < my)).
-  Proof.
-    intros.
-    unfold estp in *.
-    rename H into sf2d.
-    specialize (sf_2deriv s) as d2s.
-    change (is_derive_n sf 2 s (PI * s / (l a)² *
-                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
-                                 my * sin (1 / 2 * PI * (s * / l a)²))))
-      in d2s.
-    apply is_derive_n_unique in d2s.
-
-    unfold s, euler_spiral_tangent_pt in *.
-    destruct Rge_dec ; [|lra].
-    destruct Req_EM_T; [lra|].
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
-    end.
-    rewrite c1d in d2s, sf2d.
-    specialize (agt0_lagt0 _ zlta) as zltla.
-
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
-    end.
-    specialize PI_RGT_0 as pigt0.
-    assert (0 <= k + IZR N * PI) as ineq; try zltab.
-    specialize (rwa ineq).
-    simpl in rwa.
-    rewrite RmultRinv in d2s.
-    rewrite rwa in d2s.
-    rewrite d2s in sf2d.
-    
-    assert (0 <= PI * (l a * sqrt (2 / PI * (k + IZR N * PI))) / (l a)²) as poszK. {
-      zltab.
-      unfold Rsqr.
-      zltab. }
-
-    destruct poszK as [posK |k0] ;
-                                                                                     [ | rewrite <- k0 in sf2d;
-                                                                                         autorewrite with null in sf2d;
-                                                                                         lra].
-    
-    assert (k = atan (my / mx) /\ 0 <= atan (my / mx) \/
-                                  k = atan (my / mx) + PI /\ atan (my/mx) < 0) as kdef2. {
-      destruct kdef.
-      left.
-      split; lra.
-      right.
-      split; lra. }
-    clear kdef.
-
-    match goal with
-    | H : ?K * (mx * cos ?A + my * sin ?A) < 0,
-          I : 0 < ?K |- _ =>
-      assert (mx * cos A + my * sin A < 0) as sf2ds;
-        [apply (Rmult_lt_reg_l K);
-         [assumption|
-          arn; assumption]|]
-    end.
-    assert (k + IZR N * PI = atan (my / mx) + IZR N * PI /\ 0 <= atan (my / mx) \/
-                                                            k + IZR N * PI = atan (my / mx) + IZR (N+1) * PI /\ atan (my / mx) < 0) as kdef3. {
-      destruct kdef2 as [[kdef ats]| [kdef ats]];
-        [left|right];
-        rewrite kdef;
-        (split; [try rewrite plus_IZR; field|assumption]).
-    }
-    clear kdef2.
-
-    assert (0 < 1 + (my / mx)²) as dpos;
-      [apply Rplus_lt_le_0_compat;
-       [lra|apply Rle_0_sqr]|].
-    
-    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
-      [apply sqrt_lt_R0; assumption|].
-
-    destruct kdef3 as [[kdef atnn] |[kdef atn]].
-    + rewrite kdef in sf2ds.
-      specialize (sincosatan2 (my/mx) N) as [pm [cond [sadef cadef]]].
-      rewrite sadef, cadef in sf2ds.
-      assert (0 <= my * / mx) as atas. {
-        rewrite RmultRinv.
-        unfold atan in atnn.
-        destruct pre_atan as [φ [[pl ph] td]].
-        assert (-PI / 2 < 0) as zl. lra.
-        assert (0 < PI / 2) as zh. lra.
-        destruct atnn as [atp |ate].
-        specialize (tan_increasing _ _ zl atp ph) as tord.
-        rewrite td, tan_0 in tord.
-        left.
-        assumption.
-        rewrite <- ate, tan_0 in td.
-        right.
-        assumption. }
-      destruct cond as [[Ncond pmd]|[Ncond pmd]].
-      ++ rewrite pmd in sf2ds.
-         left.
-         split; try assumption.
-         assert (mx + my * (my / mx) < 0) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n sf2ds2 dpos atas.
-         assert (mx < 0) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_lt_0_compat in mxlt0.
-         apply (Rmult_le_reg_r (- / mx)).
-         lra.
-         arn.
-         setl (- (my * / mx)); auto.
-         setr (-0).
-         apply Ropp_le_contravar.
-         assumption.
-      ++ rewrite pmd in sf2ds.
-         right.
-         right.
-         left.
-         split; try assumption.
-         assert (0 < mx + my * (my / mx)) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n sf2ds2 dpos atas.
-         assert (0 < mx) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_0_lt_compat in mxlt0.
-         apply (Rmult_le_reg_r (/ mx)).
-         assumption.
-         arn.
-         assumption.
-    + rewrite kdef in sf2ds.
-      specialize (sincosatan2 (my/mx) (N+1)) as [pm [cond [sadef cadef]]].
-      rewrite sadef, cadef in sf2ds.
-      rewrite Z.add_1_r in cond.
-      rewrite Z.Even_succ, Z.Odd_succ in cond.
-
-      assert (my * / mx < 0) as atas. {
-        rewrite RmultRinv.
-        unfold atan in atn.
-        destruct pre_atan as [φ [[pl ph] td]].
-        assert (-PI / 2 < 0) as zl. lra.
-        assert (0 < PI / 2) as zh. lra.
-        specialize (tan_increasing _ _ pl atn zh) as tord.
-        rewrite td, tan_0 in tord.
-        assumption. }
-      
-      destruct cond as [[Ncond pmd]|[Ncond pmd]].
-      ++ rewrite pmd in sf2ds.
-         right.
-         right.
-         right.
-         split; try assumption.
-         assert (mx + my * (my / mx) < 0) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n sf2ds2 dpos atas.
-         assert (mx < 0) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_lt_0_compat in mxlt0.
-         apply (Rmult_lt_reg_r (- / mx)).
-         lra.
-         arn.
-         setr (- (my * / mx)); auto.
-         setl (-0).
-         apply Ropp_lt_contravar.
-         assumption.
-      ++ rewrite pmd in sf2ds.
-         right.
-         left.
-         split; try assumption.
-         assert (0 < mx + my * (my / mx)) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n sf2ds2 dpos atas.
-         assert (0 < mx) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_0_lt_compat in mxlt0.
-         apply (Rmult_lt_reg_r (/ mx)).
-         assumption.
-         arn.
-         assumption.
-  Qed.
-
-  Lemma sf_2deriv_pos_posN_mxne0 :
-    forall N (mxne0 : 0 <> mx)
-           (Nge0 : IZR N >= 0),
-      let s := estp N in
-      0 < Derive_n sf 2 s ->
-      ((Z.Even N /\ 0 < mx /\ 0 <= my) \/ (Z.Even N /\ mx < 0 /\ 0 < my) \/
-       (Z.Odd N /\ mx < 0/\ my <= 0) \/ (Z.Odd N /\ 0 < mx /\ my < 0)).
-  Proof.
-    intros.
-    unfold estp in *.
-    rename H into sf2d.
-    specialize (sf_2deriv s) as d2s.
-    change (is_derive_n sf 2 s (PI * s / (l a)² *
-                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
-                                 my * sin (1 / 2 * PI * (s * / l a)²))))
-      in d2s.
-    apply is_derive_n_unique in d2s.
-
-    unfold s, euler_spiral_tangent_pt in *.
-    destruct Rge_dec ; [|lra].
-    destruct Req_EM_T; [lra|].
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
-    end.
-    rewrite c1d in d2s, sf2d.
-    specialize (agt0_lagt0 _ zlta) as zltla.
-
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
-    end.
-    specialize PI_RGT_0 as pigt0.
-    assert (0 <= k + IZR N * PI) as ineq; try zltab.
-    specialize (rwa ineq).
-    simpl in rwa.
-    rewrite RmultRinv in d2s.
-    rewrite rwa in d2s.
-    rewrite d2s in sf2d.
-    
-    assert (0 <= PI * (l a * sqrt (2 / PI * (k + IZR N * PI))) / (l a)²) as poszK. {
-      zltab.
-      unfold Rsqr.
-      zltab. }
-
-    destruct poszK as [posK |k0] ;
-        [ | rewrite <- k0 in sf2d;
-            autorewrite with null in sf2d;
-            lra].
-    
-    assert (k = atan (my / mx) /\ 0 <= atan (my / mx) \/
-                                  k = atan (my / mx) + PI /\ atan (my/mx) < 0) as kdef2. {
-      destruct kdef.
-      left.
-      split; lra.
-      right.
-      split; lra. }
-    clear kdef.
-
-    match goal with
-    | H : 0 < ?K * (mx * cos ?A + my * sin ?A),
-          I : 0 < ?K |- _ =>
-      assert (0 < mx * cos A + my * sin A) as sf2ds;
-        [apply (Rmult_lt_reg_l K);
-         [assumption|
-          arn; assumption]|]
-
-    end.
-    assert (k + IZR N * PI = atan (my / mx) + IZR N * PI /\
-            0 <= atan (my / mx) \/
-            k + IZR N * PI = atan (my / mx) + IZR (N+1) * PI /\
-            atan (my / mx) < 0) as kdef3. {
-      destruct kdef2 as [[kdef ats]| [kdef ats]];
-        [left|right];
-        rewrite kdef;
-        (split; [try rewrite plus_IZR; field|assumption]).
-    }
-    clear kdef2.
-
-    assert (0 < 1 + (my / mx)²) as dpos;
-      [apply Rplus_lt_le_0_compat;
-       [lra|apply Rle_0_sqr]|].
-    
-    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
-      [apply sqrt_lt_R0; assumption|].
-
-    destruct kdef3 as [[kdef atnn] |[kdef atn]].
-    + rewrite kdef in sf2ds.
-      specialize (sincosatan2 (my/mx) N) as [pm [cond [sadef cadef]]].
-      rewrite sadef, cadef in sf2ds.
-      assert (0 <= my * / mx) as atas. {
-        rewrite RmultRinv.
-        unfold atan in atnn.
-        destruct pre_atan as [φ [[pl ph] td]].
-        assert (-PI / 2 < 0) as zl. lra.
-        assert (0 < PI / 2) as zh. lra.
-        destruct atnn as [atp |ate].
-        specialize (tan_increasing _ _ zl atp ph) as tord.
-        rewrite td, tan_0 in tord.
-        left.
-        assumption.
-        rewrite <- ate, tan_0 in td.
-        right.
-        assumption. }
-
-      destruct cond as [[Ncond pmd]|[Ncond pmd]].
-      ++ rewrite pmd in sf2ds.
-         left.
-         split; try assumption.
-         assert (0 < mx + my * (my / mx)) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n sf2ds2 dpos atas.
-         assert (0 < mx) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-
-         apply Rinv_0_lt_compat in mxlt0.
-         apply (Rmult_le_reg_r (/ mx)).
-         lra.
-         arn.
-         assumption.
-      ++ rewrite pmd in sf2ds.
-         right.
-         right.
-         left.
-         split; try assumption.
-         assert (mx + my * (my / mx) < 0 ) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n sf2ds2 dpos atas.
-         assert (mx < 0) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_lt_0_compat in mxlt0.
-         apply (Rmult_le_reg_r (/ - mx)).
-         rewrite <- Ropp_inv_permute.
-         lra.
-         lra.
-         arn.
-         setl (- (my * / mx)); try lra.
-    + rewrite kdef in sf2ds.
-      specialize (sincosatan2 (my/mx) (N+1)) as [pm [cond [sadef cadef]]].
-      rewrite sadef, cadef in sf2ds.
-      rewrite Z.add_1_r in cond.
-      rewrite Z.Even_succ, Z.Odd_succ in cond.
-
-      assert (my * / mx < 0) as atas. {
-        rewrite RmultRinv.
-        unfold atan in atn.
-        destruct pre_atan as [φ [[pl ph] td]].
-        assert (-PI / 2 < 0) as zl. lra.
-        assert (0 < PI / 2) as zh. lra.
-        specialize (tan_increasing _ _ pl atn zh) as tord.
-        rewrite td, tan_0 in tord.
-        assumption. }
-      
-      destruct cond as [[Ncond pmd]|[Ncond pmd]].
-      ++ rewrite pmd in sf2ds.
-         right.
-         right.
-         right.
-         split; try assumption.
-         assert (0 < mx + my * (my / mx)) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n sf2ds2 dpos atas.
-         assert (0 < mx) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_0_lt_compat in mxlt0.
-         apply (Rmult_lt_reg_r (/ mx)).
-         assumption.
-         arn.
-         assumption.
-      ++ rewrite pmd in sf2ds.
-         right.
-         left.
-         split; try assumption.
-         assert (mx + my * (my / mx) < 0) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n sf2ds2 dpos atas.
-         assert (mx < 0) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_lt_0_compat in mxlt0.
-         apply (Rmult_lt_reg_r (- / mx)).
-         lra.
-         arn.
-         setl (-0).
-         setr (- (my * / mx)).
-         lra.
-         apply Ropp_lt_contravar.
-         assumption.
-  Qed.
-
-
-  Lemma sf_2deriv_neg_negN_mxne0 :
-    forall N (mxne0 : 0 <> mx)
-           (Nlt0 : IZR N < 0),
-      let s := estp N in
-      Derive_n sf 2 s < 0 ->
-      ((Z.Even N /\ mx < 0/\ my <= 0) \/ (Z.Even N /\ 0 < mx /\ my < 0) \/
-       (Z.Odd N /\ 0 < mx /\ 0 <= my) \/ (Z.Odd N /\ mx < 0 /\ 0 < my)).
-  Proof.
-    intros.
-    unfold estp in *.
-    rename H into sf2d.
-    specialize (sf_2deriv s) as d2s.
-    change (is_derive_n sf 2 s (PI * s / (l a)² *
-                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
-                                 my * sin (1 / 2 * PI * (s * / l a)²))))
-      in d2s.
-    apply is_derive_n_unique in d2s.
-
-    unfold s, euler_spiral_tangent_pt in *.
-    destruct Rge_dec; [lra|].
-    destruct Req_EM_T; [lra|clear n].
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
-    end.
-    rewrite c1d in d2s, sf2d.
-    specialize (agt0_lagt0 _ zlta) as zltla.
-
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
-    end.
-    specialize PI_RGT_0 as pigt0.
-    assert (0 <= k - IZR (N + 1) * PI) as ineq; try zltab.
-
-    fieldrewrite (k - IZR (N + 1) * PI) (k + - IZR (N + 1) * PI).
-    zltab.
-    rewrite <- opp_IZR.
-    apply IZR_le.
-    apply lt_IZR in Nlt0.
-    omega.
-    
-    specialize (rwa ineq).
-    simpl in rwa.
-    rewrite RmultRinv in d2s.
-    rewrite rwa in d2s.
-    rewrite d2s in sf2d.
-    
-    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
-      setr (PI * (l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²).
-      apply ane0_lane0; try assumption.
-      zltab.
-      unfold Rsqr.
-      zltab. }
-
-    destruct poszK as [posK | k0];
-                                                                                                 [ | apply (Rmult_eq_compat_l (-1)) in k0;
-                                                                                                     assert (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI)))
-                                                                                                                    / (l a)² = 0) as eq0; try lra;
-                                                                                                     rewrite eq0 in sf2d;
-                                                                                                     autorewrite with null in sf2d;
-                                                                                                     lra].
-
-
-    
-    assert (k = atan (my / mx) /\ 0 <= atan (my / mx) \/
-                                  k = atan (my / mx) + PI /\ atan (my/mx) < 0) as kdef2. {
-      destruct kdef.
-      left.
-      split; lra.
-      right.
-      split; lra. }
-    clear kdef.
-
-    match goal with
-    | H : ?K * (mx * cos ?A + my * sin ?A) < 0,
-          I : 0 < - ?K |- _ =>
-      assert (0 < mx * cos A + my * sin A) as sf2ds;
-        [apply Ropp_lt_cancel;
-         apply (Rmult_lt_reg_r (-K));
-         [assumption|arn; lrag sf2d]
-        |]
-    end.
-    
-    assert (k - IZR (N + 1) * PI = atan (my / mx) + - IZR (N + 1) * PI /\ 0 <= atan (my / mx) \/
-                                                                          k - IZR (N + 1) * PI = atan (my / mx) + - IZR N * PI /\ atan (my / mx) < 0) as kdef3. {
-      destruct kdef2 as [[kdef ats]| [kdef ats]];
-        [left|right];
-        rewrite kdef;
-        (split; [try rewrite plus_IZR; field|assumption]).
-    }
-    clear kdef2.
-
-    assert (0 < 1 + (my / mx)²) as dpos;
-      [apply Rplus_lt_le_0_compat;
-       [lra|apply Rle_0_sqr]|].
-    
-    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
-      [apply sqrt_lt_R0; assumption|].
-
-    destruct kdef3 as [[kdef atnn] |[kdef atn]].
-    + rewrite kdef in sf2ds.
-      rewrite <- opp_IZR in sf2ds.
-      specialize (sincosatan2 (my/mx) (- (N + 1))) as [pm [cond [sadef cadef]]].
-      rewrite sadef, cadef in sf2ds.
-      assert (0 <= my * / mx) as atas. {
-        rewrite RmultRinv.
-        unfold atan in atnn.
-        destruct pre_atan as [φ [[pl ph] td]].
-        assert (-PI / 2 < 0) as zl. lra.
-        assert (0 < PI / 2) as zh. lra.
-        destruct atnn as [atp |ate].
-        specialize (tan_increasing _ _ zl atp ph) as tord.
-        rewrite td, tan_0 in tord.
-        left.
-        assumption.
-        rewrite <- ate, tan_0 in td.
-        right.
-        assumption. }
-      rewrite Z.add_1_r in cond.
-      rewrite Z.opp_succ in cond.
-      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
-      rewrite Z.even_pred, Z.odd_pred, Z.odd_opp, Z.even_opp in cond.
-      rewrite Z.even_spec, Z.odd_spec in cond.
-
-      destruct cond as [[Ncond pmd]|[Ncond pmd]].
-      ++ rewrite pmd in sf2ds.
-         right.
-         right.
-         left.
-         split; try assumption.
-         assert (0 < mx + my * (my / mx)) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n0 sf2ds2 dpos atas mxne0.
-         assert (0 < mx) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_0_lt_compat in mxlt0.
-         apply (Rmult_le_reg_r (/ mx)).
-         lra.
-         arn.
-         assumption.
-      ++ rewrite pmd in sf2ds.
-         left.
-         split; try assumption.
-         assert (mx + my * (my / mx) < 0) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n0 sf2ds2 dpos atas.
-         assert (mx < 0) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_lt_0_compat in mxlt0.
-         apply (Rmult_le_reg_r (- / mx)).
-         lra.
-         arn.
-         lra.
-    + rewrite kdef in sf2ds.
-      specialize (sincosatan2 (my/mx) (-N)) as [pm [cond [sadef cadef]]].
-      rewrite opp_IZR in sadef, cadef.
-      rewrite sadef, cadef in sf2ds.
-
-      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
-      rewrite Z.odd_opp, Z.even_opp in cond.
-      rewrite Z.even_spec, Z.odd_spec in cond.
-
-      assert (my * / mx < 0) as atas. {
-        rewrite RmultRinv.
-        unfold atan in atn.
-        destruct pre_atan as [φ [[pl ph] td]].
-        assert (-PI / 2 < 0) as zl. lra.
-        assert (0 < PI / 2) as zh. lra.
-        specialize (tan_increasing _ _ pl atn zh) as tord.
-        rewrite td, tan_0 in tord.
-        assumption. }
-      
-      destruct cond as [[Ncond pmd]|[Ncond pmd]].
-      ++ rewrite pmd in sf2ds.
-         right.
-         left.
-         split; try assumption.
-         assert (0 < mx + my * (my / mx)) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n0 sf2ds2 dpos atas.
-         assert (0 < mx) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_0_lt_compat in mxlt0.
-         apply (Rmult_lt_reg_r (/ mx)).
-         assumption.
-         arn.
-         assumption.
-      ++ rewrite pmd in sf2ds.
-         right.
-         right.
-         right.
-         split; try assumption.
-         assert (mx + my * (my / mx) < 0) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n0 sf2ds2 dpos atas.
-         assert (mx < 0) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_lt_0_compat in mxlt0.
-         apply (Rmult_lt_reg_r (- / mx)).
-         lra.
-         apply Ropp_lt_cancel.
-         lrag sf2ds2.
-  Qed.
-
-  Lemma sf_2deriv_pos_negN_mxne0 :
-    forall N (mxne0 : 0 <> mx)
-           (Nlt0 : IZR N < 0),
-      let s := estp N in
-      0 < Derive_n sf 2 s ->
-      ((Z.Even N /\ 0 < mx /\ 0 <= my) \/ (Z.Even N /\ mx < 0 /\ 0 < my) \/
-       (Z.Odd N /\ mx < 0 /\ my <= 0) \/ (Z.Odd N /\ 0 < mx /\ my< 0)).
-  Proof.
-    intros.
-    unfold estp in *.
-    rename H into sf2d.
-    specialize (sf_2deriv s) as d2s.
-    change (is_derive_n sf 2 s (PI * s / (l a)² *
-                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
-                                 my * sin (1 / 2 * PI * (s * / l a)²))))
-      in d2s.
-    apply is_derive_n_unique in d2s.
-
-    unfold s, euler_spiral_tangent_pt in *.
-    destruct Rge_dec; [lra|].
-    destruct Req_EM_T; [lra|clear n].
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
-    end.
-    rewrite c1d in d2s, sf2d.
-    specialize (agt0_lagt0 _ zlta) as zltla.
-
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
-    end.
-    specialize PI_RGT_0 as pigt0.
-    assert (0 <= k - IZR (N + 1) * PI) as ineq; try zltab.
-
-    fieldrewrite (k - IZR (N + 1) * PI) (k + - IZR (N + 1) * PI).
-    zltab.
-    rewrite <- opp_IZR.
-    apply IZR_le.
-    apply lt_IZR in Nlt0.
-    omega.
-    
-    specialize (rwa ineq).
-    simpl in rwa.
-    rewrite RmultRinv in d2s.
-    rewrite rwa in d2s.
-    rewrite d2s in sf2d.
-    
-    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
-      setr (PI * (l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²).
-      apply ane0_lane0; try assumption.
-      zltab.
-      unfold Rsqr.
-      zltab. }
-
-    destruct poszK as [posK | k0];
-      [ | apply (Rmult_eq_compat_l (-1)) in k0;
-          assert (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI)))
-                         / (l a)² = 0) as eq0; try lra;
-          rewrite eq0 in sf2d;
-          autorewrite with null in sf2d;
-          lra].
-    
-    assert (k = atan (my / mx) /\
-            0 <= atan (my / mx) \/
-            k = atan (my / mx) + PI /\
-            atan (my/mx) < 0) as kdef2. {
-      destruct kdef.
-      left.
-      split; lra.
-      right.
-      split; lra. }
-    clear kdef.
-
-    match goal with
-    | H : 0 < ?K * (mx * cos ?A + my * sin ?A),
-          I : 0 < - ?K |- _ =>
-      assert (mx * cos A + my * sin A < 0) as sf2ds;
-        [apply Ropp_lt_cancel;
-         apply (Rmult_lt_reg_r (-K));
-         [assumption|arn; lrag sf2d]
-        |]
-    end.
-    
-    assert (k - IZR (N + 1) * PI = atan (my / mx) + - IZR (N + 1) * PI /\
-            0 <= atan (my / mx) \/
-            k - IZR (N + 1) * PI = atan (my / mx) + - IZR N * PI /\
-            atan (my / mx) < 0) as kdef3. {
-      destruct kdef2 as [[kdef ats]| [kdef ats]];
-        [left|right];
-        rewrite kdef;
-        (split; [try rewrite plus_IZR; field|assumption]).
-    }
-    clear kdef2.
-
-    assert (0 < 1 + (my / mx)²) as dpos;
-      [apply Rplus_lt_le_0_compat;
-       [lra|apply Rle_0_sqr]|].
-    
-    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
-      [apply sqrt_lt_R0; assumption|].
-
-    destruct kdef3 as [[kdef atnn] |[kdef atn]].
-    + rewrite kdef in sf2ds.
-      rewrite <- opp_IZR in sf2ds.
-      specialize (sincosatan2 (my/mx) (- (N + 1))) as [pm [cond [sadef cadef]]].
-      rewrite sadef, cadef in sf2ds.
-      assert (0 <= my * / mx) as atas. {
-        rewrite RmultRinv.
-        unfold atan in atnn.
-        destruct pre_atan as [φ [[pl ph] td]].
-        assert (-PI / 2 < 0) as zl. lra.
-        assert (0 < PI / 2) as zh. lra.
-        destruct atnn as [atp |ate].
-        specialize (tan_increasing _ _ zl atp ph) as tord.
-        rewrite td, tan_0 in tord.
-        left.
-        assumption.
-        rewrite <- ate, tan_0 in td.
-        right.
-        assumption. }
-      rewrite Z.add_1_r in cond.
-      rewrite Z.opp_succ in cond.
-      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
-      rewrite Z.even_pred, Z.odd_pred, Z.odd_opp, Z.even_opp in cond.
-      rewrite Z.even_spec, Z.odd_spec in cond.
-
-      destruct cond as [[Ncond pmd]|[Ncond pmd]].
-      ++ rewrite pmd in sf2ds.
-         right.
-         right.
-         left.
-         split; try assumption.
-         assert (mx + my * (my / mx) < 0) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n0 sf2ds2 dpos atas mxne0.
-         assert (mx < 0) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_lt_0_compat in mxlt0.
-         apply (Rmult_le_reg_r (- / mx)).
-         lra.
-         arn.
-         setl (- (my * / mx)); try lra.
-      ++ rewrite pmd in sf2ds.
-         left.
-         split; try assumption.
-         assert (0 < mx + my * (my / mx)) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n0 sf2ds2 dpos atas.
-         assert (0 < mx) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_0_lt_compat in mxlt0.
-         apply (Rmult_le_reg_r (/ mx)).
-         assumption.
-         arn.
-         assumption.
-    + rewrite kdef in sf2ds.
-      specialize (sincosatan2 (my/mx) (-N)) as [pm [cond [sadef cadef]]].
-      rewrite opp_IZR in sadef, cadef.
-      rewrite sadef, cadef in sf2ds.
-
-      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
-      rewrite Z.odd_opp, Z.even_opp in cond.
-      rewrite Z.even_spec, Z.odd_spec in cond.
-
-      assert (my * / mx < 0) as atas. {
-        rewrite RmultRinv.
-        unfold atan in atn.
-        destruct pre_atan as [φ [[pl ph] td]].
-        assert (-PI / 2 < 0) as zl. lra.
-        assert (0 < PI / 2) as zh. lra.
-        specialize (tan_increasing _ _ pl atn zh) as tord.
-        rewrite td, tan_0 in tord.
-        assumption. }
-      
-      destruct cond as [[Ncond pmd]|[Ncond pmd]].
-      ++ rewrite pmd in sf2ds.
-         right.
-         left.
-         split; try assumption.
-         assert (mx + my * (my / mx) < 0) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n0 sf2ds2 dpos atas.
-         assert (mx < 0) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_lt_0_compat in mxlt0.
-         apply (Rmult_lt_reg_r (- / mx)).
-         lra.
-         arn.
-         setr (- ( my * / mx)).
-         lra.
-         setl (-0).
-         lra.
-      ++ rewrite pmd in sf2ds.
-         right.
-         right.
-         right.
-         split; try assumption.
-         assert (0 < mx + my * (my / mx)) as sf2ds2. {
-           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
-           zltab.
-           lra. }
-         clear - n0 sf2ds2 dpos atas.
-         assert (0 < mx) as mxlt0. {
-           apply (Rmult_lt_reg_r (1 + (my / mx)²));
-             try assumption.
-           arn.
-           lrag sf2ds2. }
-         split; try assumption.
-         apply Rinv_0_lt_compat in mxlt0.
-         apply (Rmult_lt_reg_r (/ mx)).
-         lra.
-         arn.
-         assumption.
-  Qed.
-
-
-  Lemma sf_2deriv_neg_posN_mxeq0 :
-    forall N (mxeq0 : 0 = mx)
-           (myne0 : 0 <> my)
-           (Nge0 : IZR N >= 0),
-      let s := estp N in
-      Derive_n sf 2 s < 0 ->
-      Z.Even N /\ my < 0 \/ Z.Odd N /\ 0 < my.
-  Proof.
-    intros.
-    unfold estp in *.
-    rename H into sf2d.
-    specialize (sf_2deriv s) as d2s.
-    change (is_derive_n sf 2 s (PI * s / (l a)² *
-                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
-                                 my * sin (1 / 2 * PI * (s * / l a)²))))
-      in d2s.
-    apply is_derive_n_unique in d2s.
-
-    unfold s, euler_spiral_tangent_pt in *.
-    destruct Rge_dec ; [|lra].
-    destruct Req_EM_T; [|lra].
-    specialize PI_RGT_0 as pigt0.
-    destruct Rlt_dec; [lra|].
-    specialize (agt0_lagt0 _ zlta) as zltla.
-    rewrite <- mxeq0 in d2s.
-    autorewrite with null in d2s.
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (my * sin ?B) |- _ => estpid B
-    end.
-    assert (0 <= PI/2 + IZR N * PI) as ineq; try zltab.
-    specialize (rwa ineq).
-    simpl in rwa.
-    rewrite RmultRinv in d2s.
-    rewrite rwa in d2s.
-    rewrite d2s in sf2d.
-    
-    assert (0 <= PI * (l a * sqrt (2 / PI * (PI/2 + IZR N * PI))) / (l a)²) as poszK. {
-      zltab.
-      unfold Rsqr.
-      zltab. }
-
-    destruct poszK as [posK |k0];
-                                                                                        [ | rewrite <- k0 in sf2d;
-                                                                                            autorewrite with null in sf2d;
-                                                                                            lra].
-
-    match goal with
-    | H : ?K * (my * sin ?A) < 0,
-          I : 0 < ?K |- _ =>
-      assert (my * sin A < 0) as sf2ds;
-        [apply (Rmult_lt_reg_l K);
-         [assumption|
-          arn; assumption]|]
-    end.
-
-    assert (0 < 1 + (my / mx)²) as dpos;
-      [apply Rplus_lt_le_0_compat;
-       [lra|apply Rle_0_sqr]|].
-    
-    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
-      [apply sqrt_lt_R0; assumption|].
-
-    (* specialize (atan_bound (my/mx)) as atb. *)
-    (* assert (-PI / 2 < 0 < PI / 2) as zir. lra. *)
-
-    specialize (Z.Even_or_Odd N) as [nev |nod].
-    + left.
-      split; try assumption.
-      destruct nev as [m Ndef].
-      rewrite Ndef, mult_IZR, sin_period1, sin_PI2 in sf2ds.
-      lra.
-    + right.
-      split; try assumption.
-      destruct nod as [m Ndef].
-      rewrite Ndef, plus_IZR, mult_IZR, (Rplus_comm _ 1),
-      Rmult_plus_distr_r, <- Rplus_assoc, sin_period1,
-      Rmult_1_l, neg_sin, sin_PI2 in sf2ds.
-      lra.
-  Qed.
-
-
-  Lemma sf_2deriv_pos_posN_mxeq0 :
-    forall N (mxeq0 : 0 = mx)
-           (myne0 : 0 <> my)
-           (Nge0 : IZR N >= 0),
-      let s := estp N in
-      0 < Derive_n sf 2 s ->
-      Z.Even N /\ 0 < my \/ Z.Odd N /\ my < 0.
-  Proof.
-    intros.
-    unfold estp in *.
-    rename H into sf2d.
-    specialize (sf_2deriv s) as d2s.
-    change (is_derive_n sf 2 s (PI * s / (l a)² *
-                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
-                                 my * sin (1 / 2 * PI * (s * / l a)²))))
-      in d2s.
-    apply is_derive_n_unique in d2s.
-
-    unfold s, euler_spiral_tangent_pt in *.
-    destruct Rge_dec ; [|lra].
-    destruct Req_EM_T; [|lra].
-    specialize PI_RGT_0 as pigt0.
-    destruct Rlt_dec; [lra|].
-    specialize (agt0_lagt0 _ zlta) as zltla.
-    rewrite <- mxeq0 in d2s.
-    autorewrite with null in d2s.
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (my * sin ?B) |- _ => estpid B
-    end.
-    assert (0 <= PI/2 + IZR N * PI) as ineq; try zltab.
-    specialize (rwa ineq).
-    simpl in rwa.
-    rewrite RmultRinv in d2s.
-    rewrite rwa in d2s.
-    rewrite d2s in sf2d.
-    
-    assert (0 <= PI * (l a * sqrt (2 / PI * (PI/2 + IZR N * PI))) / (l a)²) as poszK. {
-      zltab.
-      unfold Rsqr.
-      zltab. }
-
-    destruct poszK as [posK |k0];
-          [ | rewrite <- k0 in sf2d;
-              autorewrite with null in sf2d;
-              lra].
-
-    match goal with
-    | H : 0 < ?K * (my * sin ?A),
-          I : 0 < ?K |- _ =>
-      assert (0 < my * sin A) as sf2ds;
-        [apply (Rmult_lt_reg_l K);
-         [assumption|
-          arn; assumption]|]
-    end.
-
-    assert (0 < 1 + (my / mx)²) as dpos;
-      [apply Rplus_lt_le_0_compat;
-       [lra|apply Rle_0_sqr]|].
-    
-    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
-      [apply sqrt_lt_R0; assumption|].
-
-    specialize (Z.Even_or_Odd N) as [nev |nod].
-    + left.
-      split; try assumption.
-      destruct nev as [m Ndef].
-      rewrite Ndef, mult_IZR, sin_period1, sin_PI2 in sf2ds.
-      lra.
-    + right.
-      split; try assumption.
-      destruct nod as [m Ndef].
-      rewrite Ndef, plus_IZR, mult_IZR, (Rplus_comm _ 1),
-      Rmult_plus_distr_r, <- Rplus_assoc, sin_period1,
-      Rmult_1_l, neg_sin, sin_PI2 in sf2ds.
-      lra.
-  Qed.
-
-
-  
-  Lemma sf_2deriv_neg_negN_mxeq0 :
-    forall N (mxeq0 : 0 = mx)
-           (myne0 : 0 <> my)
-           (Nlt0 : IZR N < 0),
-      let s := estp N in
-      Derive_n sf 2 s < 0 ->
-      Z.Even N /\ my < 0 \/ Z.Odd N /\ 0 < my.
-  Proof.
-    intros.
-    unfold estp in *.
-    rename H into sf2d.
-    specialize (sf_2deriv s) as d2s.
-    change (is_derive_n sf 2 s (PI * s / (l a)² *
-                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
-                                 my * sin (1 / 2 * PI * (s * / l a)²))))
-      in d2s.
-    apply is_derive_n_unique in d2s.
-
-    unfold s, euler_spiral_tangent_pt in *.
-    destruct Rge_dec ; [lra|clear n].
-    destruct Req_EM_T; [clear e|lra].
-    specialize PI_RGT_0 as pigt0.
-    destruct Rlt_dec; [lra|].
-    specialize (agt0_lagt0 _ zlta) as zltla.
-    rewrite <- mxeq0 in d2s.
-    autorewrite with null in d2s.
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (my * sin ?B) |- _ => estpid B
-    end.
-    assert (0 <= PI/2 - IZR (N + 1) * PI) as ineq.
-    rewrite plus_IZR.
-    setr ((- 1 / 2 + - IZR (N)) * PI).
-    rewrite <- opp_IZR.
-    apply Ropp_lt_contravar in Nlt0.
-    rewrite Ropp_0, <- opp_IZR in Nlt0.
-    apply (Rmult_le_reg_r (2 / PI)).
-    zltab.
-    arn.
-    setr (-1 + 2 * IZR (- N)); try lra.
-    rewrite <- mult_IZR, <- plus_IZR.
-    apply IZR_le.
-    apply lt_IZR in Nlt0.
-    omega.
-    specialize (rwa ineq).
-    simpl in rwa.
-    rewrite RmultRinv in d2s.
-    rewrite rwa in d2s.
-    rewrite d2s in sf2d.
-
-    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
-      setr (PI * (l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI))) / (l a)²).
-      apply ane0_lane0; try assumption.
-      zltab.
-      unfold Rsqr.
-      zltab. }
-
-    destruct poszK as [posK | k0];
-    [ | apply (Rmult_eq_compat_l (-1)) in k0;
-        assert (PI * (- l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI)))
-                       / (l a)² = 0) as eq0; try lra;
-        rewrite eq0 in sf2d;
-        autorewrite with null in sf2d;
-        lra].
-    
-
-    match goal with
-    | H : ?K * (my * sin ?A) < 0,
-          I : 0 < - ?K |- _ =>
-      assert (0 < my * sin A) as sf2ds;
-        [apply Ropp_lt_cancel;
-         apply (Rmult_lt_reg_r (-K));
-         [assumption|arn; lrag sf2d]
-        |]
-    end.
-
-    assert (0 < 1 + (my / mx)²) as dpos;
-      [apply Rplus_lt_le_0_compat;
-       [lra|apply Rle_0_sqr]|].
-    
-    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
-      [apply sqrt_lt_R0; assumption|].
-
-    specialize (Z.Even_or_Odd N) as [nev |nod].
-    + left.
-      split; try assumption.
-      destruct nev as [m Ndef].
-      rewrite Ndef, plus_IZR, mult_IZR in sf2ds.
-      assert (PI / 2 - (2 * IZR m + 1) * PI =
-              - (PI / 2) + 2 * IZR (- m) * PI) as id. {
-        rewrite opp_IZR.
-        field. }
-      rewrite id, sin_period1, sin_neg, sin_PI2 in sf2ds.
-      lra.
-    + right.
-      split; try assumption.
-      destruct nod as [m Ndef].
-      rewrite Ndef in sf2ds.
-      assert (PI / 2 - IZR (2 * m + 1 + 1) * PI = (PI / 2 + 2 * IZR (- (m + 1)) * PI)) as id. {
-        rewrite opp_IZR, plus_IZR, plus_IZR, plus_IZR, mult_IZR.
-        field. }
-      rewrite id, sin_period1, sin_PI2, Rmult_1_r in sf2ds.
-      assumption.
-  Qed.
-
-
-  Lemma sf_2deriv_pos_negN_mxeq0 :
-    forall N (mxeq0 : 0 = mx)
-           (myne0 : 0 <> my)
-           (Nlt0 : IZR N < 0),
-      let s := estp N in
-      0 < Derive_n sf 2 s ->
-      Z.Even N /\ 0 < my \/ Z.Odd N /\ my < 0.
-  Proof.
-    intros.
-    unfold estp in *.
-    rename H into sf2d.
-    specialize (sf_2deriv s) as d2s.
-    change (is_derive_n sf 2 s (PI * s / (l a)² *
-                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
-                                 my * sin (1 / 2 * PI * (s * / l a)²))))
-      in d2s.
-    apply is_derive_n_unique in d2s.
-
-    unfold s, euler_spiral_tangent_pt in *.
-    destruct Rge_dec ; [lra|clear n].
-    destruct Req_EM_T; [clear e|lra].
-    specialize PI_RGT_0 as pigt0.
-    destruct Rlt_dec; [lra|].
-    specialize (agt0_lagt0 _ zlta) as zltla.
-    rewrite <- mxeq0 in d2s.
-    autorewrite with null in d2s.
-    match goal with
-    | Q : Derive_n sf 2 ?A =
-          PI * ?A / (l a)² * (my * sin ?B) |- _ => estpid B
-    end.
-    assert (0 <= PI/2 - IZR (N + 1) * PI) as ineq.
-    rewrite plus_IZR.
-    setr ((- 1 / 2 + - IZR (N)) * PI).
-    rewrite <- opp_IZR.
-    apply Ropp_lt_contravar in Nlt0.
-    rewrite Ropp_0, <- opp_IZR in Nlt0.
-    apply (Rmult_le_reg_r (2 / PI)).
-    zltab.
-    arn.
-    setr (-1 + 2 * IZR (- N)); try lra.
-    rewrite <- mult_IZR, <- plus_IZR.
-    apply IZR_le.
-    apply lt_IZR in Nlt0.
-    omega.
-    specialize (rwa ineq).
-    simpl in rwa.
-    rewrite RmultRinv in d2s.
-    rewrite rwa in d2s.
-    rewrite d2s in sf2d.
-
-    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
-      setr (PI * (l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI))) / (l a)²).
-      apply ane0_lane0; try assumption.
-      zltab.
-      unfold Rsqr.
-      zltab. }
-
-    destruct poszK as [posK | k0];
-      [ | apply (Rmult_eq_compat_l (-1)) in k0;
-          assert (PI * (- l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI)))
-                         / (l a)² = 0) as eq0; try lra;
-          rewrite eq0 in sf2d;
-          autorewrite with null in sf2d;
-          lra].
-
-
-    match goal with
-    | H : 0 < ?K * (my * sin ?A),
-          I : 0 < - ?K |- _ =>
-      assert (my * sin A < 0) as sf2ds;
-        [apply Ropp_lt_cancel;
-         apply (Rmult_lt_reg_r (-K));
-         [assumption|arn; lrag sf2d]
-        |]
-    end.
-
-    assert (0 < 1 + (my / mx)²) as dpos;
-      [apply Rplus_lt_le_0_compat;
-       [lra|apply Rle_0_sqr]|].
-    
-    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
-      [apply sqrt_lt_R0; assumption|].
-
-    specialize (Z.Even_or_Odd N) as [nev |nod].
-    + left.
-      split; try assumption.
-      destruct nev as [m Ndef].
-      rewrite Ndef, plus_IZR, mult_IZR in sf2ds.
-      assert (PI / 2 - (2 * IZR m + 1) * PI =
-              - (PI / 2) + 2 * IZR (- m) * PI) as id. {
-        rewrite opp_IZR.
-        field. }
-      rewrite id, sin_period1, sin_neg, sin_PI2 in sf2ds.
-      lra.
-    + right.
-      split; try assumption.
-      destruct nod as [m Ndef].
-      rewrite Ndef in sf2ds.
-      assert (PI / 2 - IZR (2 * m + 1 + 1) * PI = (PI / 2 + 2 * IZR (- (m + 1)) * PI)) as id. {
-        rewrite opp_IZR, plus_IZR, plus_IZR, plus_IZR, mult_IZR.
-        field. }
-      rewrite id, sin_period1, sin_PI2, Rmult_1_r in sf2ds.
-      assumption.
-  Qed.
-
   (* end hide *)
-
-  Lemma sf_2deriv_neg : forall N,
-      let s := estp N in
-      Derive_n sf 2 s < 0 ->
-      ((Z.Even N /\ mx < 0 /\ my <= 0) \/ (Z.Even N /\ 0 <= mx /\ my < 0) \/
-       (Z.Odd N /\ 0 < mx /\ 0 <= my) \/ (Z.Odd N /\ mx <= 0 /\ 0 < my)).
-  Proof.
-    intros.
-    unfold estp in *.
-    destruct (Rge_dec (IZR N) 0).
-    destruct (Req_dec 0 mx).
-    destruct (Req_dec 0 my).
-    exfalso.
-    apply ds.
-    split; lra.
-    specialize (sf_2deriv_neg_posN_mxeq0 N H0 H1 r H)
-      as [[ze myn] |[zo myp]].
-    right;
-      left;
-      split;
-      [assumption|
-       split;
-       [right; assumption|
-        assumption]].
-    right;
-      right;
-      right;
-      split;
-      [assumption|
-       split;
-       [right; auto|
-        assumption]].
-
-    specialize (sf_2deriv_neg_posN_mxne0 N H0 r H)
-      as [[c1a [c1b c1c]]
-         |[[c2a [c2b c2c]]
-          |[[c3a [c3b c3c]] |
-            [c4a [c4b c4c]]]]].
-    left; repeat (split || assumption).
-    right; left; repeat (split || assumption || lra).
-    right; right; left; repeat (split || assumption).
-    right; right; right;  repeat (split || assumption || lra).
-
-    apply Rnot_ge_lt in n.
-    destruct (Req_dec 0 mx).
-    destruct (Req_dec 0 my).
-    exfalso.
-    apply ds.
-    split; lra.
-    specialize (sf_2deriv_neg_negN_mxeq0 N H0 H1 n H)
-      as [[ze myn] |[zo myp]].
-    right;
-      left;
-      split;
-      [assumption|
-       split;
-       [right; assumption|
-        assumption]].
-    right;
-      right;
-      right;
-      split;
-      [assumption|
-       split;
-       [right; auto|
-        assumption]].
-
-    specialize (sf_2deriv_neg_negN_mxne0 N H0 n H)
-      as [[c1a [c1b c1c]]
-         |[[c2a [c2b c2c]]
-          |[[c3a [c3b c3c]] |
-            [c4a [c4b c4c]]]]].
-    left; repeat (split || assumption).
-    right; left; repeat (split || assumption || lra).
-    right; right; left; repeat (split || assumption).
-    right; right; right;  repeat (split || assumption || lra).
-
-  Qed.
-
-  Lemma sf_2deriv_pos : forall N,
-      let s := estp N in
-      0 < Derive_n sf 2 s ->
-      ((Z.Even N /\ 0 < mx /\ 0 <= my) \/ (Z.Even N /\ mx <= 0 /\ 0 < my) \/
-       (Z.Odd N /\ mx < 0 /\ my <= 0) \/ (Z.Odd N /\ 0 <= mx /\ my < 0)).
-  Proof.
-    intros.
-    unfold estp in *.
-    destruct (Rge_dec (IZR N) 0).
-    destruct (Req_dec 0 mx).
-    destruct (Req_dec 0 my).
-    exfalso.
-    apply ds.
-    split; lra.
-    specialize (sf_2deriv_pos_posN_mxeq0 N H0 H1 r H)
-      as [[ze myn] |[zo myp]].
-    right;
-      left;
-      split;
-      [assumption|
-       split;
-       [right; auto|
-        assumption]].
-    right;
-      right;
-      right;
-      split;
-      [assumption|
-       split;
-       [right; auto|
-        assumption]].
-
-    specialize (sf_2deriv_pos_posN_mxne0 N H0 r H)
-      as [[c1a [c1b c1c]]
-         |[[c2a [c2b c2c]]
-          |[[c3a [c3b c3c]] |
-            [c4a [c4b c4c]]]]].
-    left; repeat (split || assumption).
-    right; left; repeat (split || assumption || lra).
-    right; right; left; repeat (split || assumption).
-    right; right; right;  repeat (split || assumption || lra).
-
-    apply Rnot_ge_lt in n.
-    destruct (Req_dec 0 mx).
-    destruct (Req_dec 0 my).
-    exfalso.
-    apply ds.
-    split; lra.
-    specialize (sf_2deriv_pos_negN_mxeq0 N H0 H1 n H)
-      as [[ze myn] |[zo myp]].
-    right;
-      left;
-      split;
-      [assumption|
-       split;
-       [right; auto|
-        assumption]].
-    right;
-      right;
-      right;
-      split;
-      [assumption|
-       split;
-       [right; auto|
-        assumption]].
-
-    specialize (sf_2deriv_pos_negN_mxne0 N H0 n H)
-      as [[c1a [c1b c1c]]
-         |[[c2a [c2b c2c]]
-          |[[c3a [c3b c3c]] |
-            [c4a [c4b c4c]]]]].
-    left; repeat (split || assumption).
-    right; left; repeat (split || assumption || lra).
-    right; right; left; repeat (split || assumption).
-    right; right; right;  repeat (split || assumption || lra).
-
-  Qed.
-
   (* begin hide *)
 
   Lemma sf_2deriv_sign_Ngt0 :
@@ -8602,6 +7324,7 @@ Qed.
 
 
   (* end hide *)
+
   Lemma seq0_bimpl_myeq0 : forall N (nrng : IZR N = 0 \/ IZR N = -1),
       let s := estp N in
       s = 0 <-> my = 0.
@@ -8612,6 +7335,2635 @@ Qed.
     apply myeq0_impl; try assumption.
   Qed.
 
+(* begin hide *)
+  Lemma sf_2deriv_neg_N0_mxne0 :
+    forall N (mxne0 : 0 <> mx)
+           (N0 : IZR N = 0),
+      let s := estp N in
+      Derive_n sf 2 s < 0 ->
+      my < 0.
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    assert (0 <> my) as myne0. {
+      intro myeq0.
+      symmetry in myeq0.
+      assert (IZR N = 0 \/ IZR N = -1) as c; try lra.
+      rewrite <- (seq0_bimpl_myeq0 N), <- sf_2deriv_seq0_eqv in myeq0;
+        try assumption.
+      rewrite signeq0_eqv in myeq0.
+      unfold s in sf2d.
+      unfold estp in myeq0.
+      rewrite myeq0 in sf2d.
+      lra. }
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec ; [|lra].
+    destruct Req_EM_T; [lra|].
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
+    end.
+    rewrite c1d in d2s, sf2d.
+    specialize (agt0_lagt0 _ zlta) as zltla.
+
+    destruct zltk as [zltk | zeqk].
+    2 : { exfalso.
+          rewrite <- zeqk in *.
+          clear - myne0 n kdef.
+          destruct kdef as [atz |apz].
+          - symmetry in atz.
+            unfold atan in atz.
+            destruct pre_atan as [a [[arl aru] ata]].
+            rewrite atz, tan_0 in ata.
+            rewrite <- RmultRinv in ata.
+            assert (0 = my) as zeqmy. {
+              apply (Rmult_eq_reg_r (/ mx)).
+              arn.
+              assumption.
+              zltab. }
+            lra.
+          - specialize PI_RGT_0 as pigt0.
+            symmetry in apz.
+            unfold atan in apz.
+            destruct pre_atan as [a [[arl aru] ata]].
+            lra.
+    }
+
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
+    end.
+    specialize PI_RGT_0 as pigt0.
+    assert (0 <= k + IZR N * PI) as ineq; try zltab.
+    left; assumption.
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= PI * (l a * sqrt (2 / PI * (k + IZR N * PI))) / (l a)²) as poszK. {
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK |k0] ;
+     [ | rewrite <- k0 in sf2d;
+         autorewrite with null in sf2d;
+         lra].
+    
+    assert (k = atan (my / mx) /\
+            0 < atan (my / mx) \/
+            k = atan (my / mx) + PI /\ atan (my/mx) < 0) as kdef2. {
+      destruct kdef.
+      left.
+      split; lra.
+      right.
+      split; lra. }
+    clear kdef.
+
+    match goal with
+    | H : ?K * (mx * cos ?A + my * sin ?A) < 0,
+          I : 0 < ?K |- _ =>
+      assert (mx * cos A + my * sin A < 0) as sf2ds;
+        [apply (Rmult_lt_reg_l K);
+         [assumption|
+          arn; assumption]|]
+    end.
+    assert (k + IZR N * PI = atan (my / mx) + IZR N * PI /\
+            0 < atan (my / mx) \/
+            k + IZR N * PI = atan (my / mx) + IZR (N+1) * PI /\ atan (my / mx) < 0)
+      as kdef3. {
+      destruct kdef2 as [[kdef ats]| [kdef ats]];
+        [left|right];
+        rewrite kdef;
+        (split; [try rewrite plus_IZR; field|assumption]).
+    }
+    clear kdef2.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    destruct kdef3 as [[kdef atnn] |[kdef atn]].
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) N) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      assert (0 < my * / mx) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atnn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        (* destruct atnn as [atp |ate]. *)
+        specialize (tan_increasing _ _ zl atnn ph) as tord.
+        rewrite td, tan_0 in tord.
+        assumption.
+        (* rewrite <- ate, tan_0 in td. *)
+        (* right. *)
+        (* assumption. *) }
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         (* left. *)
+         (* split; try assumption. *)
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_lt_reg_r (- / mx)).
+         lra.
+         arn.
+         setl (- (my * / mx)); auto.
+         setr (-0).
+         apply Ropp_lt_contravar.
+         assumption.
+      ++ unfold Z.Odd in Ncond;
+         clear - Ncond N0;
+         destruct Ncond as [b Nd];
+         apply eq_IZR in N0;
+         lia.
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) (N+1)) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      rewrite Z.add_1_r in cond.
+      rewrite Z.Even_succ, Z.Odd_succ in cond.
+
+      assert (my * / mx < 0) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ pl atn zh) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ unfold Z.Odd in Ncond;
+         clear - Ncond N0;
+         destruct Ncond as [b Nd];
+         apply eq_IZR in N0;
+         lia.
+
+      ++ rewrite pmd in sf2ds.
+         (* right. *)
+         (* split; try assumption. *)
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_lt_reg_r (/ mx)).
+         assumption.
+         arn.
+         assumption.
+  Qed.
+
+
+  Lemma sf_2deriv_pos_N0_mxne0 :
+    forall N (mxne0 : 0 <> mx)
+           (N0 : IZR N = 0),
+      let s := estp N in
+      0 < Derive_n sf 2 s ->
+      0 < my.
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    assert (0 <> my) as myne0. {
+      intro myeq0.
+      symmetry in myeq0.
+      assert (IZR N = 0 \/ IZR N = -1) as c; try lra.
+      rewrite <- (seq0_bimpl_myeq0 N), <- sf_2deriv_seq0_eqv in myeq0;
+        try assumption.
+      rewrite signeq0_eqv in myeq0.
+      unfold s in sf2d.
+      unfold estp in myeq0.
+      rewrite myeq0 in sf2d.
+      lra. }
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec ; [|lra].
+    destruct Req_EM_T; [lra|].
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
+    end.
+    rewrite c1d in d2s, sf2d.
+    specialize (agt0_lagt0 _ zlta) as zltla.
+
+    destruct zltk as [zltk | zeqk].
+    2 : { exfalso.
+          rewrite <- zeqk in *.
+          clear - myne0 n kdef.
+          destruct kdef as [atz |apz].
+          - symmetry in atz.
+            unfold atan in atz.
+            destruct pre_atan as [a [[arl aru] ata]].
+            rewrite atz, tan_0 in ata.
+            rewrite <- RmultRinv in ata.
+            assert (0 = my) as zeqmy. {
+              apply (Rmult_eq_reg_r (/ mx)).
+              arn.
+              assumption.
+              zltab. }
+            lra.
+          - specialize PI_RGT_0 as pigt0.
+            symmetry in apz.
+            unfold atan in apz.
+            destruct pre_atan as [a [[arl aru] ata]].
+            lra.
+    }
+
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
+    end.
+    specialize PI_RGT_0 as pigt0.
+    assert (0 <= k + IZR N * PI) as ineq; try zltab.
+    left; assumption.
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= PI * (l a * sqrt (2 / PI * (k + IZR N * PI))) / (l a)²) as poszK. {
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK |k0] ;
+        [ | rewrite <- k0 in sf2d;
+            autorewrite with null in sf2d;
+            lra].
+    
+    assert (k = atan (my / mx) /\
+            0 < atan (my / mx) \/
+            k = atan (my / mx) + PI /\ atan (my/mx) < 0) as kdef2. {
+      destruct kdef.
+      left.
+      split; lra.
+      right.
+      split; lra. }
+    clear kdef.
+
+    match goal with
+    | H : 0 < ?K * (mx * cos ?A + my * sin ?A),
+          I : 0 < ?K |- _ =>
+      assert (0 < mx * cos A + my * sin A) as sf2ds;
+        [apply (Rmult_lt_reg_l K);
+         [assumption|
+          arn; assumption]|]
+
+    end.
+    assert (k + IZR N * PI = atan (my / mx) + IZR N * PI /\
+            0 < atan (my / mx) \/
+            k + IZR N * PI = atan (my / mx) + IZR (N+1) * PI /\
+            atan (my / mx) < 0) as kdef3. {
+      destruct kdef2 as [[kdef ats]| [kdef ats]];
+        [left|right];
+        rewrite kdef;
+        (split; [try rewrite plus_IZR; field|assumption]).
+    }
+    clear kdef2.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    destruct kdef3 as [[kdef atnn] |[kdef atn]].
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) N) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      assert (0 < my * / mx) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atnn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        (* destruct atnn as [atp |ate]. *)
+        specialize (tan_increasing _ _ zl atnn ph) as tord.
+        rewrite td, tan_0 in tord.
+        (* left. *)
+        assumption.
+        (* rewrite <- ate, tan_0 in td. *)
+        (* right. *)
+        (* assumption. *) }
+
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         (* left. *)
+         (* split; try assumption. *)
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         (* split; try assumption. *)
+
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_lt_reg_r (/ mx)).
+         lra.
+         arn.
+         assumption.
+      ++ unfold Z.Odd in Ncond;
+         clear - Ncond N0;
+         destruct Ncond as [b Nd];
+         apply eq_IZR in N0;
+         lia.
+
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) (N+1)) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      rewrite Z.add_1_r in cond.
+      rewrite Z.Even_succ, Z.Odd_succ in cond.
+
+      assert (my * / mx < 0) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ pl atn zh) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ unfold Z.Odd in Ncond;
+         clear - Ncond N0;
+         destruct Ncond as [b Nd];
+         apply eq_IZR in N0;
+         lia.
+
+      ++ rewrite pmd in sf2ds.
+         (* right. *)
+         (* split; try assumption. *)
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         (* split; try assumption. *)
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_lt_reg_r (- / mx)).
+         lra.
+         arn.
+         setl (-0).
+         setr (- (my * / mx)).
+         lra.
+         apply Ropp_lt_contravar.
+         assumption.
+  Qed.
+
+  Lemma sf_2deriv_neg_Nn1_mxne0 :
+    forall N (mxne0 : 0 <> mx)
+           (Neqn1 : IZR N = -1),
+      let s := estp N in
+      Derive_n sf 2 s < 0 ->
+      0 < my.
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    assert (0 <> my) as myne0. {
+      intro myeq0.
+      symmetry in myeq0.
+      assert (IZR N = 0 \/ IZR N = -1) as c; try lra.
+      rewrite <- (seq0_bimpl_myeq0 N), <- sf_2deriv_seq0_eqv in myeq0;
+        try assumption.
+      rewrite signeq0_eqv in myeq0.
+      unfold s in sf2d.
+      unfold estp in myeq0.
+      rewrite myeq0 in sf2d.
+      lra. }
+    
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec; [lra|].
+    destruct Req_EM_T; [lra|clear n].
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
+    end.
+    rewrite c1d in d2s, sf2d.
+    specialize (agt0_lagt0 _ zlta) as zltla.
+
+    destruct zltk as [zltk | zeqk].
+    2 : { exfalso.
+          rewrite <- zeqk in *.
+          clear - myne0 n0 kdef.
+          destruct kdef as [atz |apz].
+          - symmetry in atz.
+            unfold atan in atz.
+            destruct pre_atan as [a [[arl aru] ata]].
+            rewrite atz, tan_0 in ata.
+            rewrite <- RmultRinv in ata.
+            assert (0 = my) as zeqmy. {
+              apply (Rmult_eq_reg_r (/ mx)).
+              arn.
+              assumption.
+              zltab. }
+            lra.
+          - specialize PI_RGT_0 as pigt0.
+            symmetry in apz.
+            unfold atan in apz.
+            destruct pre_atan as [a [[arl aru] ata]].
+            lra.
+    }
+    
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
+    end.
+    specialize PI_RGT_0 as pigt0.
+    assert (0 <= k - IZR (N + 1) * PI) as ineq; try zltab.
+
+    fieldrewrite (k - IZR (N + 1) * PI) (k + - IZR (N + 1) * PI).
+    zltab.
+    left; assumption.
+    rewrite <- opp_IZR.
+    apply IZR_le.
+    apply eq_IZR in Neqn1.
+    rewrite Neqn1.
+    omega.
+    
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
+      setr (PI * (l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²).
+      apply ane0_lane0; try assumption.
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK | k0];
+                                                                                                 [ | apply (Rmult_eq_compat_l (-1)) in k0;
+                                                                                                     assert (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI)))
+                                                                                                                    / (l a)² = 0) as eq0; try lra;
+                                                                                                     rewrite eq0 in sf2d;
+                                                                                                     autorewrite with null in sf2d;
+                                                                                                     lra].
+
+
+    
+    assert (k = atan (my / mx) /\
+            0 < atan (my / mx) \/
+            k = atan (my / mx) + PI /\ atan (my/mx) < 0) as kdef2. {
+      destruct kdef.
+      left.
+      split; lra.
+      right.
+      split; lra. }
+    clear kdef.
+
+    match goal with
+    | H : ?K * (mx * cos ?A + my * sin ?A) < 0,
+          I : 0 < - ?K |- _ =>
+      assert (0 < mx * cos A + my * sin A) as sf2ds;
+        [apply Ropp_lt_cancel;
+         apply (Rmult_lt_reg_r (-K));
+         [assumption|arn; lrag sf2d]
+        |]
+    end.
+    
+    assert (k - IZR (N + 1) * PI = atan (my / mx) + - IZR (N + 1) * PI /\
+            0 < atan (my / mx) \/
+            k - IZR (N + 1) * PI = atan (my / mx) + - IZR N * PI /\ atan (my / mx) < 0) as kdef3. {
+      destruct kdef2 as [[kdef ats]| [kdef ats]];
+        [left|right];
+        rewrite kdef;
+        (split; [try rewrite plus_IZR; field|assumption]).
+    }
+    clear kdef2.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    destruct kdef3 as [[kdef atnn] |[kdef atn]].
+    + rewrite kdef in sf2ds.
+      rewrite <- opp_IZR in sf2ds.
+      specialize (sincosatan2 (my/mx) (- (N + 1))) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      assert (0 < my * / mx) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atnn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ zl atnn ph) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      rewrite Z.add_1_r in cond.
+      rewrite Z.opp_succ in cond.
+      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
+      rewrite Z.even_pred, Z.odd_pred, Z.odd_opp, Z.even_opp in cond.
+      rewrite Z.even_spec, Z.odd_spec in cond.
+
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas mxne0.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_lt_reg_r (/ mx)).
+         lra.
+         arn.
+         assumption.
+      ++ unfold Z.Even in Ncond;
+         clear - Ncond Neqn1;
+         destruct Ncond as [b Nd];
+         apply eq_IZR in Neqn1;
+         lia.
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) (-N)) as [pm [cond [sadef cadef]]].
+      rewrite opp_IZR in sadef, cadef.
+      rewrite sadef, cadef in sf2ds.
+
+      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
+      rewrite Z.odd_opp, Z.even_opp in cond.
+      rewrite Z.even_spec, Z.odd_spec in cond.
+
+      assert (my * / mx < 0) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ pl atn zh) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ unfold Z.Even in Ncond;
+         clear - Ncond Neqn1;
+         destruct Ncond as [b Nd];
+         apply eq_IZR in Neqn1;
+         lia.
+      ++ rewrite pmd in sf2ds.
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_lt_reg_r (- / mx)).
+         lra.
+         apply Ropp_lt_cancel.
+         lrag sf2ds2.
+  Qed.
+
+  Lemma sf_2deriv_pos_Nn1_mxne0 :
+    forall N (mxne0 : 0 <> mx)
+           (Neqn1 : IZR N = -1),
+      let s := estp N in
+      0 < Derive_n sf 2 s ->
+      my < 0.
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    assert (0 <> my) as myne0. {
+      intro myeq0.
+      symmetry in myeq0.
+      assert (IZR N = 0 \/ IZR N = -1) as c; try lra.
+      rewrite <- (seq0_bimpl_myeq0 N), <- sf_2deriv_seq0_eqv in myeq0;
+        try assumption.
+      rewrite signeq0_eqv in myeq0.
+      unfold s in sf2d.
+      unfold estp in myeq0.
+      rewrite myeq0 in sf2d.
+      lra. }
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec; [lra|].
+    destruct Req_EM_T; [lra|clear n].
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
+    end.
+    rewrite c1d in d2s, sf2d.
+    specialize (agt0_lagt0 _ zlta) as zltla.
+
+    destruct zltk as [zltk | zeqk].
+    2 : { exfalso.
+          rewrite <- zeqk in *.
+          clear - myne0 n0 kdef.
+          destruct kdef as [atz |apz].
+          - symmetry in atz.
+            unfold atan in atz.
+            destruct pre_atan as [a [[arl aru] ata]].
+            rewrite atz, tan_0 in ata.
+            rewrite <- RmultRinv in ata.
+            assert (0 = my) as zeqmy. {
+              apply (Rmult_eq_reg_r (/ mx)).
+              arn.
+              assumption.
+              zltab. }
+            lra.
+          - specialize PI_RGT_0 as pigt0.
+            symmetry in apz.
+            unfold atan in apz.
+            destruct pre_atan as [a [[arl aru] ata]].
+            lra.
+    }
+
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
+    end.
+    specialize PI_RGT_0 as pigt0.
+    assert (0 <= k - IZR (N + 1) * PI) as ineq; try zltab.
+
+    fieldrewrite (k - IZR (N + 1) * PI) (k + - IZR (N + 1) * PI).
+    zltab.
+    left; assumption.
+    rewrite <- opp_IZR.
+    apply IZR_le.
+    apply eq_IZR in Neqn1.
+    omega.
+    
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
+      setr (PI * (l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²).
+      apply ane0_lane0; try assumption.
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK | k0];
+      [ | apply (Rmult_eq_compat_l (-1)) in k0;
+          assert (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI)))
+                         / (l a)² = 0) as eq0; try lra;
+          rewrite eq0 in sf2d;
+          autorewrite with null in sf2d;
+          lra].
+    
+    assert (k = atan (my / mx) /\
+            0 < atan (my / mx) \/
+            k = atan (my / mx) + PI /\
+            atan (my/mx) < 0) as kdef2. {
+      destruct kdef.
+      left.
+      split; lra.
+      right.
+      split; lra. }
+    clear kdef.
+
+    match goal with
+    | H : 0 < ?K * (mx * cos ?A + my * sin ?A),
+          I : 0 < - ?K |- _ =>
+      assert (mx * cos A + my * sin A < 0) as sf2ds;
+        [apply Ropp_lt_cancel;
+         apply (Rmult_lt_reg_r (-K));
+         [assumption|arn; lrag sf2d]
+        |]
+    end.
+    
+    assert (k - IZR (N + 1) * PI = atan (my / mx) + - IZR (N + 1) * PI /\
+            0 < atan (my / mx) \/
+            k - IZR (N + 1) * PI = atan (my / mx) + - IZR N * PI /\
+            atan (my / mx) < 0) as kdef3. {
+      destruct kdef2 as [[kdef ats]| [kdef ats]];
+        [left|right];
+        rewrite kdef;
+        (split; [try rewrite plus_IZR; field|assumption]).
+    }
+    clear kdef2.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    destruct kdef3 as [[kdef atnn] |[kdef atn]].
+    + rewrite kdef in sf2ds.
+      rewrite <- opp_IZR in sf2ds.
+      specialize (sincosatan2 (my/mx) (- (N + 1))) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      assert (0 < my * / mx) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atnn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ zl atnn ph) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      rewrite Z.add_1_r in cond.
+      rewrite Z.opp_succ in cond.
+      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
+      rewrite Z.even_pred, Z.odd_pred, Z.odd_opp, Z.even_opp in cond.
+      rewrite Z.even_spec, Z.odd_spec in cond.
+
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas mxne0.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_lt_reg_r (- / mx)).
+         lra.
+         arn.
+         setl (- (my * / mx)); try lra.
+      ++ unfold Z.Even in Ncond;
+         clear - Ncond Neqn1;
+         destruct Ncond as [b Nd];
+         apply eq_IZR in Neqn1;
+         lia.
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) (-N)) as [pm [cond [sadef cadef]]].
+      rewrite opp_IZR in sadef, cadef.
+      rewrite sadef, cadef in sf2ds.
+
+      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
+      rewrite Z.odd_opp, Z.even_opp in cond.
+      rewrite Z.even_spec, Z.odd_spec in cond.
+
+      assert (my * / mx < 0) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ pl atn zh) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ unfold Z.Even in Ncond;
+         clear - Ncond Neqn1;
+         destruct Ncond as [b Nd];
+         apply eq_IZR in Neqn1;
+         lia.
+      ++ rewrite pmd in sf2ds.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_lt_reg_r (/ mx)).
+         lra.
+         arn.
+         assumption.
+  Qed.
+  
+  Lemma sf_2deriv_neg_posN_mxne0 :
+    forall N (mxne0 : 0 <> mx)
+           (Nge0 : IZR N >= 0),
+      let s := estp N in
+      Derive_n sf 2 s < 0 ->
+      ((Z.Even N /\ mx < 0 /\ my <= 0) \/ (Z.Even N /\ 0 < mx /\ my < 0) \/
+       (Z.Odd N /\ 0 < mx /\ 0 <= my) \/ (Z.Odd N /\ mx < 0 /\ 0 < my)).
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec ; [|lra].
+    destruct Req_EM_T; [lra|].
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
+    end.
+    rewrite c1d in d2s, sf2d.
+    specialize (agt0_lagt0 _ zlta) as zltla.
+
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
+    end.
+    specialize PI_RGT_0 as pigt0.
+    assert (0 <= k + IZR N * PI) as ineq; try zltab.
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= PI * (l a * sqrt (2 / PI * (k + IZR N * PI))) / (l a)²) as poszK. {
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK |k0] ;
+                                                                                     [ | rewrite <- k0 in sf2d;
+                                                                                         autorewrite with null in sf2d;
+                                                                                         lra].
+    
+    assert (k = atan (my / mx) /\ 0 <= atan (my / mx) \/
+                                  k = atan (my / mx) + PI /\ atan (my/mx) < 0) as kdef2. {
+      destruct kdef.
+      left.
+      split; lra.
+      right.
+      split; lra. }
+    clear kdef.
+
+    match goal with
+    | H : ?K * (mx * cos ?A + my * sin ?A) < 0,
+          I : 0 < ?K |- _ =>
+      assert (mx * cos A + my * sin A < 0) as sf2ds;
+        [apply (Rmult_lt_reg_l K);
+         [assumption|
+          arn; assumption]|]
+    end.
+    assert (k + IZR N * PI = atan (my / mx) + IZR N * PI /\ 0 <= atan (my / mx) \/
+                                                            k + IZR N * PI = atan (my / mx) + IZR (N+1) * PI /\ atan (my / mx) < 0) as kdef3. {
+      destruct kdef2 as [[kdef ats]| [kdef ats]];
+        [left|right];
+        rewrite kdef;
+        (split; [try rewrite plus_IZR; field|assumption]).
+    }
+    clear kdef2.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    destruct kdef3 as [[kdef atnn] |[kdef atn]].
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) N) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      assert (0 <= my * / mx) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atnn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        destruct atnn as [atp |ate].
+        specialize (tan_increasing _ _ zl atp ph) as tord.
+        rewrite td, tan_0 in tord.
+        left.
+        assumption.
+        rewrite <- ate, tan_0 in td.
+        right.
+        assumption. }
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         left.
+         split; try assumption.
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_le_reg_r (- / mx)).
+         lra.
+         arn.
+         setl (- (my * / mx)); auto.
+         setr (-0).
+         apply Ropp_le_contravar.
+         assumption.
+      ++ rewrite pmd in sf2ds.
+         right.
+         right.
+         left.
+         split; try assumption.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_le_reg_r (/ mx)).
+         assumption.
+         arn.
+         assumption.
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) (N+1)) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      rewrite Z.add_1_r in cond.
+      rewrite Z.Even_succ, Z.Odd_succ in cond.
+
+      assert (my * / mx < 0) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ pl atn zh) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         right.
+         right.
+         right.
+         split; try assumption.
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_lt_reg_r (- / mx)).
+         lra.
+         arn.
+         setr (- (my * / mx)); auto.
+         setl (-0).
+         apply Ropp_lt_contravar.
+         assumption.
+      ++ rewrite pmd in sf2ds.
+         right.
+         left.
+         split; try assumption.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_lt_reg_r (/ mx)).
+         assumption.
+         arn.
+         assumption.
+  Qed.
+  
+  Lemma sf_2deriv_pos_posN_mxne0 :
+    forall N (mxne0 : 0 <> mx)
+           (Nge0 : IZR N >= 0),
+      let s := estp N in
+      0 < Derive_n sf 2 s ->
+      ((Z.Even N /\ 0 < mx /\ 0 <= my) \/ (Z.Even N /\ mx < 0 /\ 0 < my) \/
+       (Z.Odd N /\ mx < 0/\ my <= 0) \/ (Z.Odd N /\ 0 < mx /\ my < 0)).
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec ; [|lra].
+    destruct Req_EM_T; [lra|].
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
+    end.
+    rewrite c1d in d2s, sf2d.
+    specialize (agt0_lagt0 _ zlta) as zltla.
+
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
+    end.
+    specialize PI_RGT_0 as pigt0.
+    assert (0 <= k + IZR N * PI) as ineq; try zltab.
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= PI * (l a * sqrt (2 / PI * (k + IZR N * PI))) / (l a)²) as poszK. {
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK |k0] ;
+        [ | rewrite <- k0 in sf2d;
+            autorewrite with null in sf2d;
+            lra].
+    
+    assert (k = atan (my / mx) /\ 0 <= atan (my / mx) \/
+                                  k = atan (my / mx) + PI /\ atan (my/mx) < 0) as kdef2. {
+      destruct kdef.
+      left.
+      split; lra.
+      right.
+      split; lra. }
+    clear kdef.
+
+    match goal with
+    | H : 0 < ?K * (mx * cos ?A + my * sin ?A),
+          I : 0 < ?K |- _ =>
+      assert (0 < mx * cos A + my * sin A) as sf2ds;
+        [apply (Rmult_lt_reg_l K);
+         [assumption|
+          arn; assumption]|]
+
+    end.
+    assert (k + IZR N * PI = atan (my / mx) + IZR N * PI /\
+            0 <= atan (my / mx) \/
+            k + IZR N * PI = atan (my / mx) + IZR (N+1) * PI /\
+            atan (my / mx) < 0) as kdef3. {
+      destruct kdef2 as [[kdef ats]| [kdef ats]];
+        [left|right];
+        rewrite kdef;
+        (split; [try rewrite plus_IZR; field|assumption]).
+    }
+    clear kdef2.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    destruct kdef3 as [[kdef atnn] |[kdef atn]].
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) N) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      assert (0 <= my * / mx) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atnn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        destruct atnn as [atp |ate].
+        specialize (tan_increasing _ _ zl atp ph) as tord.
+        rewrite td, tan_0 in tord.
+        left.
+        assumption.
+        rewrite <- ate, tan_0 in td.
+        right.
+        assumption. }
+
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         left.
+         split; try assumption.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_le_reg_r (/ mx)).
+         lra.
+         arn.
+         assumption.
+      ++ rewrite pmd in sf2ds.
+         right.
+         right.
+         left.
+         split; try assumption.
+         assert (mx + my * (my / mx) < 0 ) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_le_reg_r (/ - mx)).
+         rewrite <- Ropp_inv_permute.
+         lra.
+         lra.
+         arn.
+         setl (- (my * / mx)); try lra.
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) (N+1)) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      rewrite Z.add_1_r in cond.
+      rewrite Z.Even_succ, Z.Odd_succ in cond.
+
+      assert (my * / mx < 0) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ pl atn zh) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         right.
+         right.
+         right.
+         split; try assumption.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_lt_reg_r (/ mx)).
+         assumption.
+         arn.
+         assumption.
+      ++ rewrite pmd in sf2ds.
+         right.
+         left.
+         split; try assumption.
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_lt_reg_r (- / mx)).
+         lra.
+         arn.
+         setl (-0).
+         setr (- (my * / mx)).
+         lra.
+         apply Ropp_lt_contravar.
+         assumption.
+  Qed.
+
+
+  Lemma sf_2deriv_neg_negN_mxne0 :
+    forall N (mxne0 : 0 <> mx)
+           (Nlt0 : IZR N < 0),
+      let s := estp N in
+      Derive_n sf 2 s < 0 ->
+      ((Z.Even N /\ mx < 0/\ my <= 0) \/ (Z.Even N /\ 0 < mx /\ my < 0) \/
+       (Z.Odd N /\ 0 < mx /\ 0 <= my) \/ (Z.Odd N /\ mx < 0 /\ 0 < my)).
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec; [lra|].
+    destruct Req_EM_T; [lra|clear n].
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
+    end.
+    rewrite c1d in d2s, sf2d.
+    specialize (agt0_lagt0 _ zlta) as zltla.
+
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
+    end.
+    specialize PI_RGT_0 as pigt0.
+    assert (0 <= k - IZR (N + 1) * PI) as ineq; try zltab.
+
+    fieldrewrite (k - IZR (N + 1) * PI) (k + - IZR (N + 1) * PI).
+    zltab.
+    rewrite <- opp_IZR.
+    apply IZR_le.
+    apply lt_IZR in Nlt0.
+    omega.
+    
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
+      setr (PI * (l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²).
+      apply ane0_lane0; try assumption.
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK | k0];
+                                                                                                 [ | apply (Rmult_eq_compat_l (-1)) in k0;
+                                                                                                     assert (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI)))
+                                                                                                                    / (l a)² = 0) as eq0; try lra;
+                                                                                                     rewrite eq0 in sf2d;
+                                                                                                     autorewrite with null in sf2d;
+                                                                                                     lra].
+
+
+    
+    assert (k = atan (my / mx) /\ 0 <= atan (my / mx) \/
+                                  k = atan (my / mx) + PI /\ atan (my/mx) < 0) as kdef2. {
+      destruct kdef.
+      left.
+      split; lra.
+      right.
+      split; lra. }
+    clear kdef.
+
+    match goal with
+    | H : ?K * (mx * cos ?A + my * sin ?A) < 0,
+          I : 0 < - ?K |- _ =>
+      assert (0 < mx * cos A + my * sin A) as sf2ds;
+        [apply Ropp_lt_cancel;
+         apply (Rmult_lt_reg_r (-K));
+         [assumption|arn; lrag sf2d]
+        |]
+    end.
+    
+    assert (k - IZR (N + 1) * PI = atan (my / mx) + - IZR (N + 1) * PI /\ 0 <= atan (my / mx) \/
+                                                                          k - IZR (N + 1) * PI = atan (my / mx) + - IZR N * PI /\ atan (my / mx) < 0) as kdef3. {
+      destruct kdef2 as [[kdef ats]| [kdef ats]];
+        [left|right];
+        rewrite kdef;
+        (split; [try rewrite plus_IZR; field|assumption]).
+    }
+    clear kdef2.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    destruct kdef3 as [[kdef atnn] |[kdef atn]].
+    + rewrite kdef in sf2ds.
+      rewrite <- opp_IZR in sf2ds.
+      specialize (sincosatan2 (my/mx) (- (N + 1))) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      assert (0 <= my * / mx) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atnn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        destruct atnn as [atp |ate].
+        specialize (tan_increasing _ _ zl atp ph) as tord.
+        rewrite td, tan_0 in tord.
+        left.
+        assumption.
+        rewrite <- ate, tan_0 in td.
+        right.
+        assumption. }
+      rewrite Z.add_1_r in cond.
+      rewrite Z.opp_succ in cond.
+      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
+      rewrite Z.even_pred, Z.odd_pred, Z.odd_opp, Z.even_opp in cond.
+      rewrite Z.even_spec, Z.odd_spec in cond.
+
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         right.
+         right.
+         left.
+         split; try assumption.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas mxne0.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_le_reg_r (/ mx)).
+         lra.
+         arn.
+         assumption.
+      ++ rewrite pmd in sf2ds.
+         left.
+         split; try assumption.
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_le_reg_r (- / mx)).
+         lra.
+         arn.
+         lra.
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) (-N)) as [pm [cond [sadef cadef]]].
+      rewrite opp_IZR in sadef, cadef.
+      rewrite sadef, cadef in sf2ds.
+
+      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
+      rewrite Z.odd_opp, Z.even_opp in cond.
+      rewrite Z.even_spec, Z.odd_spec in cond.
+
+      assert (my * / mx < 0) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ pl atn zh) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         right.
+         left.
+         split; try assumption.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_lt_reg_r (/ mx)).
+         assumption.
+         arn.
+         assumption.
+      ++ rewrite pmd in sf2ds.
+         right.
+         right.
+         right.
+         split; try assumption.
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_lt_reg_r (- / mx)).
+         lra.
+         apply Ropp_lt_cancel.
+         lrag sf2ds2.
+  Qed.
+
+  Lemma sf_2deriv_pos_negN_mxne0 :
+    forall N (mxne0 : 0 <> mx)
+           (Nlt0 : IZR N < 0),
+      let s := estp N in
+      0 < Derive_n sf 2 s ->
+      ((Z.Even N /\ 0 < mx /\ 0 <= my) \/ (Z.Even N /\ mx < 0 /\ 0 < my) \/
+       (Z.Odd N /\ mx < 0 /\ my <= 0) \/ (Z.Odd N /\ 0 < mx /\ my< 0)).
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec; [lra|].
+    destruct Req_EM_T; [lra|clear n].
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => rdsk2t A B
+    end.
+    rewrite c1d in d2s, sf2d.
+    specialize (agt0_lagt0 _ zlta) as zltla.
+
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (mx * cos ?B + my * sin ?B) |- _ => estpid B
+    end.
+    specialize PI_RGT_0 as pigt0.
+    assert (0 <= k - IZR (N + 1) * PI) as ineq; try zltab.
+
+    fieldrewrite (k - IZR (N + 1) * PI) (k + - IZR (N + 1) * PI).
+    zltab.
+    rewrite <- opp_IZR.
+    apply IZR_le.
+    apply lt_IZR in Nlt0.
+    omega.
+    
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
+      setr (PI * (l a * sqrt (2 / PI * (k - IZR (N + 1) * PI))) / (l a)²).
+      apply ane0_lane0; try assumption.
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK | k0];
+      [ | apply (Rmult_eq_compat_l (-1)) in k0;
+          assert (PI * (- l a * sqrt (2 / PI * (k - IZR (N + 1) * PI)))
+                         / (l a)² = 0) as eq0; try lra;
+          rewrite eq0 in sf2d;
+          autorewrite with null in sf2d;
+          lra].
+    
+    assert (k = atan (my / mx) /\
+            0 <= atan (my / mx) \/
+            k = atan (my / mx) + PI /\
+            atan (my/mx) < 0) as kdef2. {
+      destruct kdef.
+      left.
+      split; lra.
+      right.
+      split; lra. }
+    clear kdef.
+
+    match goal with
+    | H : 0 < ?K * (mx * cos ?A + my * sin ?A),
+          I : 0 < - ?K |- _ =>
+      assert (mx * cos A + my * sin A < 0) as sf2ds;
+        [apply Ropp_lt_cancel;
+         apply (Rmult_lt_reg_r (-K));
+         [assumption|arn; lrag sf2d]
+        |]
+    end.
+    
+    assert (k - IZR (N + 1) * PI = atan (my / mx) + - IZR (N + 1) * PI /\
+            0 <= atan (my / mx) \/
+            k - IZR (N + 1) * PI = atan (my / mx) + - IZR N * PI /\
+            atan (my / mx) < 0) as kdef3. {
+      destruct kdef2 as [[kdef ats]| [kdef ats]];
+        [left|right];
+        rewrite kdef;
+        (split; [try rewrite plus_IZR; field|assumption]).
+    }
+    clear kdef2.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    destruct kdef3 as [[kdef atnn] |[kdef atn]].
+    + rewrite kdef in sf2ds.
+      rewrite <- opp_IZR in sf2ds.
+      specialize (sincosatan2 (my/mx) (- (N + 1))) as [pm [cond [sadef cadef]]].
+      rewrite sadef, cadef in sf2ds.
+      assert (0 <= my * / mx) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atnn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        destruct atnn as [atp |ate].
+        specialize (tan_increasing _ _ zl atp ph) as tord.
+        rewrite td, tan_0 in tord.
+        left.
+        assumption.
+        rewrite <- ate, tan_0 in td.
+        right.
+        assumption. }
+      rewrite Z.add_1_r in cond.
+      rewrite Z.opp_succ in cond.
+      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
+      rewrite Z.even_pred, Z.odd_pred, Z.odd_opp, Z.even_opp in cond.
+      rewrite Z.even_spec, Z.odd_spec in cond.
+
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         right.
+         right.
+         left.
+         split; try assumption.
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas mxne0.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_le_reg_r (- / mx)).
+         lra.
+         arn.
+         setl (- (my * / mx)); try lra.
+      ++ rewrite pmd in sf2ds.
+         left.
+         split; try assumption.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_le_reg_r (/ mx)).
+         assumption.
+         arn.
+         assumption.
+    + rewrite kdef in sf2ds.
+      specialize (sincosatan2 (my/mx) (-N)) as [pm [cond [sadef cadef]]].
+      rewrite opp_IZR in sadef, cadef.
+      rewrite sadef, cadef in sf2ds.
+
+      rewrite <- Z.even_spec, <- Z.odd_spec in cond.
+      rewrite Z.odd_opp, Z.even_opp in cond.
+      rewrite Z.even_spec, Z.odd_spec in cond.
+
+      assert (my * / mx < 0) as atas. {
+        rewrite RmultRinv.
+        unfold atan in atn.
+        destruct pre_atan as [φ [[pl ph] td]].
+        assert (-PI / 2 < 0) as zl. lra.
+        assert (0 < PI / 2) as zh. lra.
+        specialize (tan_increasing _ _ pl atn zh) as tord.
+        rewrite td, tan_0 in tord.
+        assumption. }
+      
+      destruct cond as [[Ncond pmd]|[Ncond pmd]].
+      ++ rewrite pmd in sf2ds.
+         right.
+         left.
+         split; try assumption.
+         assert (mx + my * (my / mx) < 0) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas.
+         assert (mx < 0) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_lt_0_compat in mxlt0.
+         apply (Rmult_lt_reg_r (- / mx)).
+         lra.
+         arn.
+         setr (- ( my * / mx)).
+         lra.
+         setl (-0).
+         lra.
+      ++ rewrite pmd in sf2ds.
+         right.
+         right.
+         right.
+         split; try assumption.
+         assert (0 < mx + my * (my / mx)) as sf2ds2. {
+           apply (Rmult_lt_reg_r (/ sqrt (1 + (my / mx)²))).
+           zltab.
+           lra. }
+         clear - n0 sf2ds2 dpos atas.
+         assert (0 < mx) as mxlt0. {
+           apply (Rmult_lt_reg_r (1 + (my / mx)²));
+             try assumption.
+           arn.
+           lrag sf2ds2. }
+         split; try assumption.
+         apply Rinv_0_lt_compat in mxlt0.
+         apply (Rmult_lt_reg_r (/ mx)).
+         lra.
+         arn.
+         assumption.
+  Qed.
+
+
+  Lemma sf_2deriv_neg_posN_mxeq0 :
+    forall N (mxeq0 : 0 = mx)
+           (myne0 : 0 <> my)
+           (Nge0 : IZR N >= 0),
+      let s := estp N in
+      Derive_n sf 2 s < 0 ->
+      Z.Even N /\ my < 0 \/ Z.Odd N /\ 0 < my.
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec ; [|lra].
+    destruct Req_EM_T; [|lra].
+    specialize PI_RGT_0 as pigt0.
+    destruct Rlt_dec; [lra|].
+    specialize (agt0_lagt0 _ zlta) as zltla.
+    rewrite <- mxeq0 in d2s.
+    autorewrite with null in d2s.
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (my * sin ?B) |- _ => estpid B
+    end.
+    assert (0 <= PI/2 + IZR N * PI) as ineq; try zltab.
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= PI * (l a * sqrt (2 / PI * (PI/2 + IZR N * PI))) / (l a)²) as poszK. {
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK |k0];
+                                                                                        [ | rewrite <- k0 in sf2d;
+                                                                                            autorewrite with null in sf2d;
+                                                                                            lra].
+
+    match goal with
+    | H : ?K * (my * sin ?A) < 0,
+          I : 0 < ?K |- _ =>
+      assert (my * sin A < 0) as sf2ds;
+        [apply (Rmult_lt_reg_l K);
+         [assumption|
+          arn; assumption]|]
+    end.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    (* specialize (atan_bound (my/mx)) as atb. *)
+    (* assert (-PI / 2 < 0 < PI / 2) as zir. lra. *)
+
+    specialize (Z.Even_or_Odd N) as [nev |nod].
+    + left.
+      split; try assumption.
+      destruct nev as [m Ndef].
+      rewrite Ndef, mult_IZR, sin_period1, sin_PI2 in sf2ds.
+      lra.
+    + right.
+      split; try assumption.
+      destruct nod as [m Ndef].
+      rewrite Ndef, plus_IZR, mult_IZR, (Rplus_comm _ 1),
+      Rmult_plus_distr_r, <- Rplus_assoc, sin_period1,
+      Rmult_1_l, neg_sin, sin_PI2 in sf2ds.
+      lra.
+  Qed.
+
+
+  Lemma sf_2deriv_pos_posN_mxeq0 :
+    forall N (mxeq0 : 0 = mx)
+           (myne0 : 0 <> my)
+           (Nge0 : IZR N >= 0),
+      let s := estp N in
+      0 < Derive_n sf 2 s ->
+      Z.Even N /\ 0 < my \/ Z.Odd N /\ my < 0.
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec ; [|lra].
+    destruct Req_EM_T; [|lra].
+    specialize PI_RGT_0 as pigt0.
+    destruct Rlt_dec; [lra|].
+    specialize (agt0_lagt0 _ zlta) as zltla.
+    rewrite <- mxeq0 in d2s.
+    autorewrite with null in d2s.
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (my * sin ?B) |- _ => estpid B
+    end.
+    assert (0 <= PI/2 + IZR N * PI) as ineq; try zltab.
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+    
+    assert (0 <= PI * (l a * sqrt (2 / PI * (PI/2 + IZR N * PI))) / (l a)²) as poszK. {
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK |k0];
+          [ | rewrite <- k0 in sf2d;
+              autorewrite with null in sf2d;
+              lra].
+
+    match goal with
+    | H : 0 < ?K * (my * sin ?A),
+          I : 0 < ?K |- _ =>
+      assert (0 < my * sin A) as sf2ds;
+        [apply (Rmult_lt_reg_l K);
+         [assumption|
+          arn; assumption]|]
+    end.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    specialize (Z.Even_or_Odd N) as [nev |nod].
+    + left.
+      split; try assumption.
+      destruct nev as [m Ndef].
+      rewrite Ndef, mult_IZR, sin_period1, sin_PI2 in sf2ds.
+      lra.
+    + right.
+      split; try assumption.
+      destruct nod as [m Ndef].
+      rewrite Ndef, plus_IZR, mult_IZR, (Rplus_comm _ 1),
+      Rmult_plus_distr_r, <- Rplus_assoc, sin_period1,
+      Rmult_1_l, neg_sin, sin_PI2 in sf2ds.
+      lra.
+  Qed.
+
+  
+  Lemma sf_2deriv_neg_negN_mxeq0 :
+    forall N (mxeq0 : 0 = mx)
+           (myne0 : 0 <> my)
+           (Nlt0 : IZR N < 0),
+      let s := estp N in
+      Derive_n sf 2 s < 0 ->
+      Z.Even N /\ my < 0 \/ Z.Odd N /\ 0 < my.
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec ; [lra|clear n].
+    destruct Req_EM_T; [clear e|lra].
+    specialize PI_RGT_0 as pigt0.
+    destruct Rlt_dec; [lra|].
+    specialize (agt0_lagt0 _ zlta) as zltla.
+    rewrite <- mxeq0 in d2s.
+    autorewrite with null in d2s.
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (my * sin ?B) |- _ => estpid B
+    end.
+    assert (0 <= PI/2 - IZR (N + 1) * PI) as ineq.
+    rewrite plus_IZR.
+    setr ((- 1 / 2 + - IZR (N)) * PI).
+    rewrite <- opp_IZR.
+    apply Ropp_lt_contravar in Nlt0.
+    rewrite Ropp_0, <- opp_IZR in Nlt0.
+    apply (Rmult_le_reg_r (2 / PI)).
+    zltab.
+    arn.
+    setr (-1 + 2 * IZR (- N)); try lra.
+    rewrite <- mult_IZR, <- plus_IZR.
+    apply IZR_le.
+    apply lt_IZR in Nlt0.
+    omega.
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+
+    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
+      setr (PI * (l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI))) / (l a)²).
+      apply ane0_lane0; try assumption.
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK | k0];
+    [ | apply (Rmult_eq_compat_l (-1)) in k0;
+        assert (PI * (- l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI)))
+                       / (l a)² = 0) as eq0; try lra;
+        rewrite eq0 in sf2d;
+        autorewrite with null in sf2d;
+        lra].
+    
+
+    match goal with
+    | H : ?K * (my * sin ?A) < 0,
+          I : 0 < - ?K |- _ =>
+      assert (0 < my * sin A) as sf2ds;
+        [apply Ropp_lt_cancel;
+         apply (Rmult_lt_reg_r (-K));
+         [assumption|arn; lrag sf2d]
+        |]
+    end.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    specialize (Z.Even_or_Odd N) as [nev |nod].
+    + left.
+      split; try assumption.
+      destruct nev as [m Ndef].
+      rewrite Ndef, plus_IZR, mult_IZR in sf2ds.
+      assert (PI / 2 - (2 * IZR m + 1) * PI =
+              - (PI / 2) + 2 * IZR (- m) * PI) as id. {
+        rewrite opp_IZR.
+        field. }
+      rewrite id, sin_period1, sin_neg, sin_PI2 in sf2ds.
+      lra.
+    + right.
+      split; try assumption.
+      destruct nod as [m Ndef].
+      rewrite Ndef in sf2ds.
+      assert (PI / 2 - IZR (2 * m + 1 + 1) * PI = (PI / 2 + 2 * IZR (- (m + 1)) * PI)) as id. {
+        rewrite opp_IZR, plus_IZR, plus_IZR, plus_IZR, mult_IZR.
+        field. }
+      rewrite id, sin_period1, sin_PI2, Rmult_1_r in sf2ds.
+      assumption.
+  Qed.
+
+
+  Lemma sf_2deriv_pos_negN_mxeq0 :
+    forall N (mxeq0 : 0 = mx)
+           (myne0 : 0 <> my)
+           (Nlt0 : IZR N < 0),
+      let s := estp N in
+      0 < Derive_n sf 2 s ->
+      Z.Even N /\ 0 < my \/ Z.Odd N /\ my < 0.
+  Proof.
+    intros.
+    unfold estp in *.
+    rename H into sf2d.
+    specialize (sf_2deriv s) as d2s.
+    change (is_derive_n sf 2 s (PI * s / (l a)² *
+                                (mx * cos (1 / 2 * PI * (s * / l a)²) +
+                                 my * sin (1 / 2 * PI * (s * / l a)²))))
+      in d2s.
+    apply is_derive_n_unique in d2s.
+
+    unfold s, euler_spiral_tangent_pt in *.
+    destruct Rge_dec ; [lra|clear n].
+    destruct Req_EM_T; [clear e|lra].
+    specialize PI_RGT_0 as pigt0.
+    destruct Rlt_dec; [lra|].
+    specialize (agt0_lagt0 _ zlta) as zltla.
+    rewrite <- mxeq0 in d2s.
+    autorewrite with null in d2s.
+    match goal with
+    | Q : Derive_n sf 2 ?A =
+          PI * ?A / (l a)² * (my * sin ?B) |- _ => estpid B
+    end.
+    assert (0 <= PI/2 - IZR (N + 1) * PI) as ineq.
+    rewrite plus_IZR.
+    setr ((- 1 / 2 + - IZR (N)) * PI).
+    rewrite <- opp_IZR.
+    apply Ropp_lt_contravar in Nlt0.
+    rewrite Ropp_0, <- opp_IZR in Nlt0.
+    apply (Rmult_le_reg_r (2 / PI)).
+    zltab.
+    arn.
+    setr (-1 + 2 * IZR (- N)); try lra.
+    rewrite <- mult_IZR, <- plus_IZR.
+    apply IZR_le.
+    apply lt_IZR in Nlt0.
+    omega.
+    specialize (rwa ineq).
+    simpl in rwa.
+    rewrite RmultRinv in d2s.
+    rewrite rwa in d2s.
+    rewrite d2s in sf2d.
+
+    assert (0 <= - (PI * (- l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI))) / (l a)²)) as poszK. {
+      setr (PI * (l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI))) / (l a)²).
+      apply ane0_lane0; try assumption.
+      zltab.
+      unfold Rsqr.
+      zltab. }
+
+    destruct poszK as [posK | k0];
+      [ | apply (Rmult_eq_compat_l (-1)) in k0;
+          assert (PI * (- l a * sqrt (2 / PI * (PI / 2 - IZR (N + 1) * PI)))
+                         / (l a)² = 0) as eq0; try lra;
+          rewrite eq0 in sf2d;
+          autorewrite with null in sf2d;
+          lra].
+
+
+    match goal with
+    | H : 0 < ?K * (my * sin ?A),
+          I : 0 < - ?K |- _ =>
+      assert (my * sin A < 0) as sf2ds;
+        [apply Ropp_lt_cancel;
+         apply (Rmult_lt_reg_r (-K));
+         [assumption|arn; lrag sf2d]
+        |]
+    end.
+
+    assert (0 < 1 + (my / mx)²) as dpos;
+      [apply Rplus_lt_le_0_compat;
+       [lra|apply Rle_0_sqr]|].
+    
+    assert (0 < sqrt (1 + (my / mx)²)) as sdpos;
+      [apply sqrt_lt_R0; assumption|].
+
+    specialize (Z.Even_or_Odd N) as [nev |nod].
+    + left.
+      split; try assumption.
+      destruct nev as [m Ndef].
+      rewrite Ndef, plus_IZR, mult_IZR in sf2ds.
+      assert (PI / 2 - (2 * IZR m + 1) * PI =
+              - (PI / 2) + 2 * IZR (- m) * PI) as id. {
+        rewrite opp_IZR.
+        field. }
+      rewrite id, sin_period1, sin_neg, sin_PI2 in sf2ds.
+      lra.
+    + right.
+      split; try assumption.
+      destruct nod as [m Ndef].
+      rewrite Ndef in sf2ds.
+      assert (PI / 2 - IZR (2 * m + 1 + 1) * PI = (PI / 2 + 2 * IZR (- (m + 1)) * PI)) as id. {
+        rewrite opp_IZR, plus_IZR, plus_IZR, plus_IZR, mult_IZR.
+        field. }
+      rewrite id, sin_period1, sin_PI2, Rmult_1_r in sf2ds.
+      assumption.
+  Qed.
+
+  Lemma sf_2deriv_neg_N0 :
+    forall N (Nge0 : IZR N = 0),
+      let s := estp N in
+      Derive_n sf 2 s < 0 ->
+      my < 0.
+  Proof.
+    intros * N0 * d2sf.
+    destruct (Req_dec mx 0) as [mx0 |mxne0].
+    + symmetry in mx0.
+      assert (0 <> my) as znemy; try lra.
+      assert (IZR N >= 0) as Nge0; try lra.
+      specialize (sf_2deriv_neg_posN_mxeq0 _ mx0 znemy Nge0 d2sf)
+        as [[ev myv] | [od myv]].
+      assumption.
+      unfold Z.Odd in od;
+        clear - od N0;
+        destruct od as [b Nd];
+        apply eq_IZR in N0;
+        lia.      
+    + assert (0 <> mx) as znemx; try lra.
+      apply (sf_2deriv_neg_N0_mxne0 _ znemx N0 d2sf).
+  Qed.
+
+  Lemma sf_2deriv_pos_N0 :
+    forall N (Nge0 : IZR N = 0),
+      let s := estp N in
+      0 < Derive_n sf 2 s ->
+      0 < my.
+  Proof.
+    intros * N0 * d2sf.
+    destruct (Req_dec mx 0) as [mx0 |mxne0].
+    + symmetry in mx0.
+      assert (0 <> my) as znemy; try lra.
+      assert (IZR N >= 0) as Nge0; try lra.
+      specialize (sf_2deriv_pos_posN_mxeq0 _ mx0 znemy Nge0 d2sf)
+        as [[ev myv] | [od myv]].
+      assumption.
+      unfold Z.Odd in od;
+        clear - od N0;
+        destruct od as [b Nd];
+        apply eq_IZR in N0;
+        lia.      
+    + assert (0 <> mx) as znemx; try lra.
+      apply (sf_2deriv_pos_N0_mxne0 _ znemx N0 d2sf).
+  Qed.
+
+  Lemma sf_2deriv_neg_Nn1 :
+    forall N (Nn1 : IZR N = -1),
+      let s := estp N in
+      Derive_n sf 2 s < 0 ->
+      0 < my.
+  Proof.
+    intros * Nn1 * d2sf.
+    destruct (Req_dec mx 0) as [mx0 |mxne0].
+    + symmetry in mx0.
+      assert (0 <> my) as znemy; try lra.
+      assert (IZR N < 0) as Nge0; try lra.
+      specialize (sf_2deriv_neg_negN_mxeq0 _ mx0 znemy Nge0 d2sf)
+        as [[ev myv] | [od myv]].
+      unfold Z.Even in ev.
+        clear - ev Nn1.
+        destruct ev as [b Nd].
+        apply eq_IZR in Nn1.
+        lia.
+      assumption.
+    + assert (0 <> mx) as znemx; try lra.
+      apply (sf_2deriv_neg_Nn1_mxne0 _ znemx Nn1 d2sf).
+  Qed.
+
+  Lemma sf_2deriv_pos_Nn1 :
+    forall N (Nn1 : IZR N = -1),
+      let s := estp N in
+      0 < Derive_n sf 2 s ->
+      my < 0.
+  Proof.
+    intros * Nn1 * d2sf.
+    destruct (Req_dec mx 0) as [mx0 |mxne0].
+    + symmetry in mx0.
+      assert (0 <> my) as znemy; try lra.
+      assert (IZR N < 0) as Nge0; try lra.
+      specialize (sf_2deriv_pos_negN_mxeq0 _ mx0 znemy Nge0 d2sf)
+        as [[ev myv] | [od myv]].
+      unfold Z.Even in ev.
+        clear - ev Nn1.
+        destruct ev as [b Nd].
+        apply eq_IZR in Nn1.
+        lia.
+      assumption.
+    + assert (0 <> mx) as znemx; try lra.
+      apply (sf_2deriv_pos_Nn1_mxne0 _ znemx Nn1 d2sf).
+  Qed.
+
+  (* end hide *)
+
+  Lemma sf_2deriv_N0 :
+    forall N (N0 : IZR N = 0),
+      let s := estp N in
+      sign (Derive_n sf 2 s) = sign my.
+  Proof.
+    intros.
+    unfold sign.
+    destruct total_order_T; [destruct s0|].
+    destruct total_order_T; [destruct s0|].
+    + reflexivity.
+    + exfalso.
+      apply sf_2deriv_pos_N0 in r; try assumption.
+      lra.
+    + exfalso.
+      apply sf_2deriv_pos_N0 in r; try assumption.
+      lra.
+    + symmetry in e.
+      assert (IZR N = 0 \/ IZR N = -1) as nrng; try lra.
+      unfold s in e.
+      rewrite <- signeq0_eqv, sf_2deriv_seq0_eqv, seq0_bimpl_myeq0 in e;
+        try assumption.
+      destruct total_order_T; [destruct s0|]; lra.
+    + apply Rgt_lt in r.
+      destruct total_order_T; [destruct s0|].
+    ++ exfalso.
+      apply sf_2deriv_neg_N0 in r; try assumption.
+      lra.
+    ++ exfalso.
+      apply sf_2deriv_neg_N0 in r; try assumption.
+      lra.
+    ++ reflexivity.
+  Qed.
+
+  Lemma sf_2deriv_Nn1 :
+    forall N (Nn1 : IZR N = -1),
+      let s := estp N in
+      sign (Derive_n sf 2 s) = - sign my.
+  Proof.
+    intros.
+    unfold sign.
+    destruct total_order_T; [destruct s0|].
+    destruct total_order_T; [destruct s0|].
+    + exfalso.
+      apply sf_2deriv_pos_Nn1 in r; try assumption.
+      lra.
+    + exfalso.
+      apply sf_2deriv_pos_Nn1 in r; try assumption.
+      lra.
+    + lra.
+    + symmetry in e.
+      assert (IZR N = 0 \/ IZR N = -1) as nrng; try lra.
+      unfold s in e.
+      rewrite <- signeq0_eqv, sf_2deriv_seq0_eqv, seq0_bimpl_myeq0 in e;
+        try assumption.
+      destruct total_order_T; [destruct s0|]; lra.
+    + apply Rgt_lt in r.
+      destruct total_order_T; [destruct s0|].
+      ++ lra.
+      ++ exfalso.
+         apply sf_2deriv_neg_Nn1 in r; try assumption.
+         lra.
+      ++ exfalso.
+         apply sf_2deriv_neg_Nn1 in r; try assumption.
+         lra.
+  Qed.
+
+  Lemma sf_2deriv_neg : forall N,
+      let s := estp N in
+      Derive_n sf 2 s < 0 ->
+      ((Z.Even N /\ mx < 0 /\ my <= 0) \/ (Z.Even N /\ 0 <= mx /\ my < 0) \/
+       (Z.Odd N /\ 0 < mx /\ 0 <= my) \/ (Z.Odd N /\ mx <= 0 /\ 0 < my)).
+  Proof.
+    intros.
+    unfold estp in *.
+    destruct (Rge_dec (IZR N) 0).
+    destruct (Req_dec 0 mx).
+    destruct (Req_dec 0 my).
+    exfalso.
+    apply ds.
+    split; lra.
+    specialize (sf_2deriv_neg_posN_mxeq0 N H0 H1 r H)
+      as [[ze myn] |[zo myp]].
+    right;
+      left;
+      split;
+      [assumption|
+       split;
+       [right; assumption|
+        assumption]].
+    right;
+      right;
+      right;
+      split;
+      [assumption|
+       split;
+       [right; auto|
+        assumption]].
+
+    specialize (sf_2deriv_neg_posN_mxne0 N H0 r H)
+      as [[c1a [c1b c1c]]
+         |[[c2a [c2b c2c]]
+          |[[c3a [c3b c3c]] |
+            [c4a [c4b c4c]]]]].
+    left; repeat (split || assumption).
+    right; left; repeat (split || assumption || lra).
+    right; right; left; repeat (split || assumption).
+    right; right; right;  repeat (split || assumption || lra).
+
+    apply Rnot_ge_lt in n.
+    destruct (Req_dec 0 mx).
+    destruct (Req_dec 0 my).
+    exfalso.
+    apply ds.
+    split; lra.
+    specialize (sf_2deriv_neg_negN_mxeq0 N H0 H1 n H)
+      as [[ze myn] |[zo myp]].
+    right;
+      left;
+      split;
+      [assumption|
+       split;
+       [right; assumption|
+        assumption]].
+    right;
+      right;
+      right;
+      split;
+      [assumption|
+       split;
+       [right; auto|
+        assumption]].
+
+    specialize (sf_2deriv_neg_negN_mxne0 N H0 n H)
+      as [[c1a [c1b c1c]]
+         |[[c2a [c2b c2c]]
+          |[[c3a [c3b c3c]] |
+            [c4a [c4b c4c]]]]].
+    left; repeat (split || assumption).
+    right; left; repeat (split || assumption || lra).
+    right; right; left; repeat (split || assumption).
+    right; right; right;  repeat (split || assumption || lra).
+
+  Qed.
+
+  Lemma sf_2deriv_pos : forall N,
+      let s := estp N in
+      0 < Derive_n sf 2 s ->
+      ((Z.Even N /\ 0 < mx /\ 0 <= my) \/ (Z.Even N /\ mx <= 0 /\ 0 < my) \/
+       (Z.Odd N /\ mx < 0 /\ my <= 0) \/ (Z.Odd N /\ 0 <= mx /\ my < 0)).
+  Proof.
+    intros.
+    unfold estp in *.
+    destruct (Rge_dec (IZR N) 0).
+    destruct (Req_dec 0 mx).
+    destruct (Req_dec 0 my).
+    exfalso.
+    apply ds.
+    split; lra.
+    specialize (sf_2deriv_pos_posN_mxeq0 N H0 H1 r H)
+      as [[ze myn] |[zo myp]].
+    right;
+      left;
+      split;
+      [assumption|
+       split;
+       [right; auto|
+        assumption]].
+    right;
+      right;
+      right;
+      split;
+      [assumption|
+       split;
+       [right; auto|
+        assumption]].
+
+    specialize (sf_2deriv_pos_posN_mxne0 N H0 r H)
+      as [[c1a [c1b c1c]]
+         |[[c2a [c2b c2c]]
+          |[[c3a [c3b c3c]] |
+            [c4a [c4b c4c]]]]].
+    left; repeat (split || assumption).
+    right; left; repeat (split || assumption || lra).
+    right; right; left; repeat (split || assumption).
+    right; right; right;  repeat (split || assumption || lra).
+
+    apply Rnot_ge_lt in n.
+    destruct (Req_dec 0 mx).
+    destruct (Req_dec 0 my).
+    exfalso.
+    apply ds.
+    split; lra.
+    specialize (sf_2deriv_pos_negN_mxeq0 N H0 H1 n H)
+      as [[ze myn] |[zo myp]].
+    right;
+      left;
+      split;
+      [assumption|
+       split;
+       [right; auto|
+        assumption]].
+    right;
+      right;
+      right;
+      split;
+      [assumption|
+       split;
+       [right; auto|
+        assumption]].
+
+    specialize (sf_2deriv_pos_negN_mxne0 N H0 n H)
+      as [[c1a [c1b c1c]]
+         |[[c2a [c2b c2c]]
+          |[[c3a [c3b c3c]] |
+            [c4a [c4b c4c]]]]].
+    left; repeat (split || assumption).
+    right; left; repeat (split || assumption || lra).
+    right; right; left; repeat (split || assumption).
+    right; right; right;  repeat (split || assumption || lra).
+
+  Qed.
+
+  Lemma cond_sf_2deriv_neg : forall N,
+      let s := estp N in
+      ((Z.Even N /\ my < 0) \/
+       (Z.Even N /\ mx < 0 /\ my = 0 /\ IZR N <> 0) \/
+       (Z.Odd N /\ 0 < my) \/
+       (Z.Odd N /\ 0 < mx /\ 0 = my /\ IZR N <> -1)) ->
+      Derive_n sf 2 s < 0.
+  Proof.
+    intros * c.
+    destruct (total_order_T (Derive_n sf 2 s) 0) as [le | gt];
+      [destruct le|].
+    + assumption.
+    + exfalso.
+      destruct (Rgt_dec (IZR N) 0) as [ngt0 |nle0];
+        [|destruct (Rlt_dec (IZR N) (-1)) as [nltn1 |ngen1]].
+      ++ assert (IZR N > 0 \/ IZR N < -1 \/
+                 (s <> 0 /\ (IZR N = 0 \/ IZR N = -1))) as sc; try lra.
+         unfold s in *.
+         apply (sf_2deriv_ne0 N); try assumption.
+         rewrite signeq0_eqv.
+         assumption.
+      ++ assert (IZR N > 0 \/ IZR N < -1 \/
+                 (s <> 0 /\ (IZR N = 0 \/ IZR N = -1))) as sc; try lra.
+         unfold s in *.
+         apply (sf_2deriv_ne0 N); try assumption.
+         rewrite signeq0_eqv.
+         assumption.
+      ++ apply Rnot_gt_le in nle0.
+         apply Rnot_lt_le in ngen1.
+         assert (IZR N = 0 \/ IZR N = -1) as np. {
+           apply le_IZR in nle0.
+           apply le_IZR in ngen1.
+           assert (N = 0 \/ N = -1)%Z as nv; try lia.
+           destruct nv as [n0 | nn1].
+           left; subst; reflexivity.
+           right; subst; reflexivity. }
+         unfold s in e.
+         generalize e; intro f;
+           rewrite <- signeq0_eqv in f.
+         rewrite <- signeq0_eqv, sf_2deriv_seq0_eqv, seq0_bimpl_myeq0 in e;
+           try assumption.
+         clear nle0 ngen1.
+         destruct np as [N0 |Nn1].
+         +++ assert (Z.Even N) as zen. {
+               unfold Z.Even.
+               exists 0%Z.
+               apply eq_IZR in N0.
+               rewrite N0.
+               lia. }
+             destruct c as [[ev1 myc] |[ev2 |[od1 |[od2 [mxd [myd IZRd]]]]]]; try lra.
+             destruct od2 as [b2 Nd2].
+             destruct zen as [b1 Nd1].
+             lia.
+         +++ assert (Z.Odd N) as zen. {
+               unfold Z.Odd.
+               exists (-1)%Z.
+               apply eq_IZR in Nn1.
+               rewrite Nn1.
+               lia. }
+             destruct c as [ev1 |[[ev2 [mxd [my0 Nd]]] |[od1 |od2]]]; try lra.
+             destruct ev2 as [b2 Nd2].
+             destruct zen as [b1 Nd1].
+             lia.
+    + exfalso.
+      apply Rgt_lt in gt.
+      apply sf_2deriv_pos in gt.
+      destruct c as [[ze1 myd] |
+                     [[ze2 [mxd [myd Nd]]] |
+                      [[zo1  myd]| [zo2 rst2]]]];
+        destruct gt as [[ze3 rst]|
+                        [[ze4 rst] |
+                         [[zo3 rst] |[zo4 rst]]]]; try lra.
+      destruct zo3 as [b2 Nd2];
+        destruct ze1 as [b1 Nd1];
+        lia.
+      destruct zo4 as [b2 Nd2];
+        destruct ze1 as [b1 Nd1];
+        lia.
+      destruct zo3 as [b2 Nd2];
+        destruct ze2 as [b1 Nd1];
+        lia.
+      destruct zo1 as [b2 Nd2];
+        destruct ze3 as [b1 Nd1];
+        lia.
+      destruct zo1 as [b2 Nd2];
+        destruct ze4 as [b1 Nd1];
+        lia.
+      destruct zo2 as [b2 Nd2];
+        destruct ze3 as [b1 Nd1];
+        lia.
+  Qed.
+
+  Lemma cond_sf_2deriv_pos : forall N,
+      let s := estp N in
+      ((Z.Even N /\0 < my) \/
+       (Z.Even N /\ 0 < mx /\ 0 = my /\ IZR N <> 0) \/
+       (Z.Odd N /\ my < 0) \/
+       (Z.Odd N /\ mx < 0 /\ my = 0 /\ IZR N <> -1)) ->
+      0 < Derive_n sf 2 s.
+  Proof.
+    intros * c.
+    destruct (total_order_T (Derive_n sf 2 s) 0) as [le | gt];
+      [destruct le|].
+    + exfalso.
+      apply sf_2deriv_neg in r.
+      destruct c as [[ze1 myd] |
+                     [[ze2 [mxd [myd Nd]]] |
+                      [[zo1  myd]| [zo2 rst2]]]];
+        destruct r as [[ze3 rst]|
+                        [[ze4 rst] |
+                         [[zo3 rst] |[zo4 rst]]]]; try lra.
+      destruct zo3 as [b2 Nd2];
+        destruct ze1 as [b1 Nd1];
+        lia.
+      destruct zo4 as [b2 Nd2];
+        destruct ze1 as [b1 Nd1];
+        lia.
+      destruct zo3 as [b2 Nd2];
+        destruct ze2 as [b1 Nd1];
+        lia.
+      destruct zo1 as [b2 Nd2];
+        destruct ze3 as [b1 Nd1];
+        lia.
+      destruct zo1 as [b2 Nd2];
+        destruct ze4 as [b1 Nd1];
+        lia.
+      destruct zo2 as [b2 Nd2];
+        destruct ze3 as [b1 Nd1];
+        lia.
+    + exfalso.
+      destruct (Rgt_dec (IZR N) 0) as [ngt0 |nle0];
+        [|destruct (Rlt_dec (IZR N) (-1)) as [nltn1 |ngen1]].
+      ++ assert (IZR N > 0 \/ IZR N < -1 \/
+                 (s <> 0 /\ (IZR N = 0 \/ IZR N = -1))) as sc; try lra.
+         unfold s in *.
+         apply (sf_2deriv_ne0 N); try assumption.
+         rewrite signeq0_eqv.
+         assumption.
+      ++ assert (IZR N > 0 \/ IZR N < -1 \/
+                 (s <> 0 /\ (IZR N = 0 \/ IZR N = -1))) as sc; try lra.
+         unfold s in *.
+         apply (sf_2deriv_ne0 N); try assumption.
+         rewrite signeq0_eqv.
+         assumption.
+      ++ apply Rnot_gt_le in nle0.
+         apply Rnot_lt_le in ngen1.
+         assert (IZR N = 0 \/ IZR N = -1) as np. {
+           apply le_IZR in nle0.
+           apply le_IZR in ngen1.
+           assert (N = 0 \/ N = -1)%Z as nv; try lia.
+           destruct nv as [n0 | nn1].
+           left; subst; reflexivity.
+           right; subst; reflexivity. }
+         unfold s in e.
+         generalize e; intro f;
+           rewrite <- signeq0_eqv in f.
+         rewrite <- signeq0_eqv, sf_2deriv_seq0_eqv, seq0_bimpl_myeq0 in e;
+           try assumption.
+         clear nle0 ngen1.
+         destruct np as [N0 |Nn1].
+         +++ assert (Z.Even N) as zen. {
+               unfold Z.Even.
+               exists 0%Z.
+               apply eq_IZR in N0.
+               rewrite N0.
+               lia. }
+             destruct c as [[ev1 myc] |[ev2 |[od1 |[od2 [mxd [myd IZRd]]]]]]; try lra.
+             destruct od2 as [b2 Nd2].
+             destruct zen as [b1 Nd1].
+             lia.
+         +++ assert (Z.Odd N) as zen. {
+               unfold Z.Odd.
+               exists (-1)%Z.
+               apply eq_IZR in Nn1.
+               rewrite Nn1.
+               lia. }
+             destruct c as [ev1 |[[ev2 [mxd [my0 Nd]]] |[od1 |od2]]]; try lra.
+             destruct ev2 as [b2 Nd2].
+             destruct zen as [b1 Nd1].
+             lia.
+    + assumption.
+  Qed.
+
+  
 (* begin hide *)
   Lemma interv_allpos_allneg : forall sn s0 f,
       (forall s : R, sn <= s <= s0 -> continuity_pt f s) ->
@@ -9707,7 +11059,8 @@ Qed.
        assumption |
        destruct H0; assumption ].
   Qed.
-(* begin hide *)
+
+  (* begin hide *)
 
   Lemma furthest_N_LHS1 : forall sa sb N,
       let sn := estp (N-1)%Z in
@@ -10700,6 +12053,32 @@ Qed.
     assumption.
   Qed.
 
+  Lemma osc_circ_safe_R_lt : forall x y s,
+      0 < s -> 
+      (x - (occx a s))² + (y - (occy a s))² < (oscr a s)² ->
+      0 < Derive (Fx a) s * (y - Fy a s) - Derive (Fy a) s * (x - Fx a s).
+  Proof.
+    intros *.
+    intros sne0 sc.
+    apply (linear_dominates_circle_lt
+             x y (Derive (Fx a) s) (Derive (Fy a) s) (Fx a s) (Fy a s) (oscr a s)).
+    unfold oscr.
+    apply Rlt_gt.
+    zltab.
+
+    intros [dx0 dy0].
+    specialize (Fx_deriv _ zlta s) as dfxa.
+    apply is_derive_unique in dfxa.
+    specialize (Fy_deriv _ zlta s) as dfya.
+    apply is_derive_unique in dfya.
+    rewrite dfxa in dx0.
+    rewrite dfya in dy0.
+    apply (cos_sin_0 (1 / 2 * PI * (s / l a)²)); split; assumption.
+    unfold occx, occy in sc.
+    assumption.
+  Qed.
+
+
   Lemma osc_circ_safe_L : forall x y s,
       s < 0 -> 
       (x - (occx a s))² + (y - (occy a s))² <= (oscr a s)² ->
@@ -11217,12 +12596,109 @@ Qed.
       lra.
   Qed.
 
-  Lemma early_safety_minima_dominate : forall N,
+  Lemma safe_orientation_neg : forall N (nge0 : IZR N >= 0),
+      let s := estp N in
+      let dFx := Derive (Fx a) s in
+      let dFy := Derive (Fy a) s in
+      let MdF := sqrt (dFx² + dFy²) in
+      let M := sqrt (mx² + my²) in
+      Derive_n sf 2 s < 0 ->
+      0 < M * / MdF /\ mx = (M * / MdF) * - dFx /\ my = (M * / MdF) * - dFy.
+  Proof.
+    intros * nge0 * zltd2.
+    specialize (sf_2deriv s) as sf2d.
+    apply is_derive_n_unique in sf2d.
+    rewrite sf2d in zltd2.
+    clear sf2d.
+
+    specialize (agt0_lagt0 _ zlta) as zltla.
+    specialize PI_RGT_0 as pigt0.
+    assert (0 < s) as zlts. {
+      destruct nge0 as [ngt0 | neq0].
+      apply spiral_N_pos; assumption.
+      specialize spiral_N_pos1 as zles.
+      apply eq_IZR in neq0.
+      simpl in zles.
+      rewrite <- neq0 in zles at 2.
+      change (0 <= s) in zles.
+      destruct zles as [zlts|zeqs].
+      assumption.
+      symmetry in zeqs.
+      rewrite zeqs, <- RmultRinv in zltd2.
+      autorewrite with null in zltd2.
+      lra. }
+
+    specialize (Fx_deriv _ zlta s) as dfxi.
+    apply is_derive_unique in dfxi.
+    change (dFx = cos (1 / 2 * PI * (s / l a)²)) in dfxi.
+    rewrite <- (RmultRinv s) in dfxi.
+    specialize (Fy_deriv _ zlta s) as dfyi.
+    apply is_derive_unique in dfyi.
+    change (dFy = sin (1 / 2 * PI * (s / l a)²)) in dfyi.
+    rewrite <- (RmultRinv s) in dfyi.
+    rewrite <- dfxi, <- dfyi in zltd2.
+
+    assert (mx * dFx + my * dFy < 0) as zlt. {
+      apply (Rmult_lt_reg_l (PI * s / (l a)²)).
+      unfold Rsqr.
+      zltab.
+      setr 0.
+      zltab.
+      assumption. }
+
+    specialize (posss _ _ ds) as zltm2.
+    generalize zltm2; intro zltsm.
+    apply sqrt_lt_R0 in zltsm.
+    change (0 < M) in zltsm.
+
+    assert (~ (dFx = 0 /\ dFy = 0)) as nfo. {
+      intros [dfxeq0 dfyeq0].
+      rewrite dfxeq0, dfyeq0 in *.
+      autorewrite with null in *.
+      lra. }
+
+    specialize (posss _ _ nfo) as zltf2.
+    generalize zltf2; intro zltsf.
+    apply sqrt_lt_R0 in zltsf.
+    change (0 < MdF) in zltsf.
+    assert (0 < / MdF) as zltsfi; try zltab.
+
+    assert (0 < M * / MdF) as zltmdf; try zltab.
+
+    specialize (euler_tan_pt_gen N) as rti.
+    change (my * dFx = mx * dFy) in rti.
+
+    rewrite RmultRinv in *.
+    assert (M / MdF = sqrt ((mx² + my²) / (dFx² + dFy²))) as ceq. {
+      unfold M, MdF.
+      rewrite sqrt_div_alt; try assumption.
+      auto.  }
+
+    specialize (sign_insensitive_pattern _ _ _ _ ds nfo rti) as
+        [gtz  [[myeq mxeq] | [myeqn mxeqn]]]; rewrite <- ceq in *.
+
+    + exfalso.
+      rewrite myeq, mxeq in zlt.
+      clear - zlt zltf2 gtz zltsf.
+      assert (0 < - (dFx² + dFy²)) as nfoc. {
+        apply (Rmult_lt_reg_l (M/ MdF)); try assumption.
+        setl (-0); try lra.
+        unfold Rsqr.
+        setr (-(M / MdF * (dFx * dFx + dFy * dFy))).
+        lra.
+        apply Ropp_lt_contravar.
+        lrag zlt. }
+      lra.
+    + repeat split; assumption.
+  Qed.
+
+
+  Lemma neg_2derivsf_late_safety_maxima_dominate : forall N,
       let s0 := estp N in
       let s1 := estp (N+1)%Z in
       let s2 := estp (N+2)%Z in
-      IZR N >= 0 -> 0 < Derive_n sf 2 s0 ->
-      sf s0 <= sf s2.
+      IZR N >= 0 -> Derive_n sf 2 s0 < 0 ->
+      sf s2 < sf s0.
   Proof.
     intros * s1 s2 nge0 s0m.
 
@@ -11248,24 +12724,24 @@ Qed.
       
     
     unfold sf, safe_pt.
-    rewrite <- lin_pt_ineq.
-    specialize (safe_orientation _ nge0 s0m) as [zltM [mxd myd]].
+    rewrite <- lin_pt_ineq_lt.
+    specialize (safe_orientation_neg _ nge0 s0m) as [zltM [mxd myd]].
     set (dFx := Derive (Fx a) s0) in *.
     set (dFy := Derive (Fy a) s0) in *.
     set (M := sqrt (mx² + my²) * / sqrt (dFx² + dFy²)) in *.
     change (0 < M) in zltM.
-    change (mx = M * dFx) in mxd.
-    change (my = M * dFy) in myd.
+    change (mx = M * - dFx) in mxd.
+    change (my = M * - dFy) in myd.
     rewrite mxd, myd.
-    apply (Rmult_le_reg_r (/ M)); try lra.
+    apply (Rmult_lt_reg_r (/ M)); try lra.
     zltab.
     setl 0; try lra.
     setr (dFx * (Fy a s2 - Fy a s0) - dFy * (Fx a s2 - Fx a s0)); try lra.
-    apply osc_circ_safe_R; try assumption.
-    apply osc_circ_approx; try assumption.
-    apply (Rle_trans _ s1).
+    apply osc_circ_safe_R_lt; try assumption.
+    apply osc_circ_approx_lt; try assumption.
+    apply (Rlt_trans _ s1).
     assert (~ (IZR N = -1 /\ my = 0)) as cndn; try lra.
-    left; apply (spiral_N_order _ cndn).
+    apply (spiral_N_order _ cndn).
     assert (~ (IZR (N+1) = -1 /\ my = 0)) as cndn1. {
       intros [n1n1 myeq0].
       rewrite plus_IZR in n1n1.
@@ -11274,8 +12750,171 @@ Qed.
     simpl in s1lts2.
     assert (N + 1 + 1 = N + 2)%Z as nid; try lia.
     rewrite nid in s1lts2.
-    left; assumption.
+    assumption.
   Qed.
+
+  
+  Lemma pos_2derivsf_early_safety_minima_dominate : forall N,
+      let s0 := estp N in
+      let s1 := estp (N+1)%Z in
+      let s2 := estp (N+2)%Z in
+      IZR N >= 0 -> 0 < Derive_n sf 2 s0 ->
+      sf s0 < sf s2.
+  Proof.
+    intros * s1 s2 nge0 s0m.
+
+    assert (0 < s0) as zlts0. {
+      destruct nge0 as [ngt0 |neq0].
+      apply spiral_N_pos; assumption.
+      specialize spiral_N_pos1 as zles.
+      simpl in zles.
+      apply eq_IZR in neq0.
+      rewrite <- neq0 in zles at 2.
+      change (0 <= s0) in zles.
+      destruct zles as [zlts0 | zeqs0]; try assumption.
+      exfalso.
+      symmetry in zeqs0.
+      unfold s0 in zeqs0.
+      rewrite <- sf_2deriv_seq0_eqv, signeq0_eqv in zeqs0.
+      unfold s0 in s0m.
+      rewrite zeqs0 in s0m.
+      lra.
+      left.
+      apply IZR_eq.
+      assumption. }
+      
+    
+    unfold sf, safe_pt.
+    rewrite <- lin_pt_ineq_lt.
+    specialize (safe_orientation _ nge0 s0m) as [zltM [mxd myd]].
+    set (dFx := Derive (Fx a) s0) in *.
+    set (dFy := Derive (Fy a) s0) in *.
+    set (M := sqrt (mx² + my²) * / sqrt (dFx² + dFy²)) in *.
+    change (0 < M) in zltM.
+    change (mx = M * dFx) in mxd.
+    change (my = M * dFy) in myd.
+    rewrite mxd, myd.
+    apply (Rmult_lt_reg_r (/ M)); try lra.
+    zltab.
+    setl 0; try lra.
+    setr (dFx * (Fy a s2 - Fy a s0) - dFy * (Fx a s2 - Fx a s0)); try lra.
+    apply osc_circ_safe_R_lt; try assumption.
+    apply osc_circ_approx_lt; try assumption.
+    apply (Rlt_trans _ s1).
+    assert (~ (IZR N = -1 /\ my = 0)) as cndn; try lra.
+    apply (spiral_N_order _ cndn).
+    assert (~ (IZR (N+1) = -1 /\ my = 0)) as cndn1. {
+      intros [n1n1 myeq0].
+      rewrite plus_IZR in n1n1.
+      lra. }
+    specialize (spiral_N_order _ cndn1) as s1lts2.
+    simpl in s1lts2.
+    assert (N + 1 + 1 = N + 2)%Z as nid; try lia.
+    rewrite nid in s1lts2.
+    assumption.
+  Qed.
+
+
+  Lemma trajectory_point_safety_order : forall N,
+      let s0 := estp N in
+      let s1 := estp (N+1)%Z in
+      let s2 := estp (N+2)%Z in
+      IZR N >= 0 ->
+      ((Z.Even N /\0 < my) \/
+       (Z.Even N /\ 0 < mx /\ 0 = my /\ IZR N <> 0) \/
+       (Z.Odd N /\ my < 0) \/
+       (Z.Odd N /\ mx < 0 /\ my = 0 /\ IZR N <> -1)) ->
+      (forall sa sb, s0 <= sa -> sa < sb -> sb <= s1 -> sf sa < sf sb) /\
+      (forall sa sb, s1 <= sa -> sa < sb -> sb <= s2 -> sf sb < sf sa) /\
+      sf s0 < sf s2.
+  Proof.
+    intros * nge0 c.
+    apply cond_sf_2deriv_pos in c.
+    split.
+    + assert (N = (N+1)-1)%Z as id; try lia.
+      unfold s0.
+      rewrite id.
+      unfold s1.
+      intros.
+      apply (furthest_N_LHS _ _ (N+1)%Z); try lra.
+      rewrite <- signeqm1_eqv.
+      rewrite <- signeq1_eqv in c.
+      rewrite sf_2deriv_sign in c.
+      lra.
+      split; try lra.
+      intros [Neq0 s0eq0].
+      rewrite <- sf_2deriv_seq0_eqv in s0eq0.
+      lra.
+      lra.
+    + split.
+      assert (N+2 = (N+1)+1)%Z as id; try lia.
+      unfold s2.
+      rewrite id.
+      unfold s1.
+      intros.
+      apply (furthest_N_RHS _ _ (N+1)%Z); try lra.
+      rewrite <- signeqm1_eqv.
+      rewrite <- signeq1_eqv in c.
+      rewrite sf_2deriv_sign in c.
+      lra.
+      split; try lra.
+      intros [Neq0 s0eq0].
+      rewrite <- sf_2deriv_seq0_eqv in s0eq0.
+      lra.
+      lra.
+    apply pos_2derivsf_early_safety_minima_dominate; try assumption.
+  Qed.
+
+  Lemma trajectory_point_safety_order_2 : forall N,
+      let s0 := estp N in
+      let s1 := estp (N+1)%Z in
+      let s2 := estp (N+2)%Z in
+      IZR N >= 0 ->
+      ((Z.Even N /\ my < 0) \/
+       (Z.Even N /\ mx < 0 /\ my = 0 /\ IZR N <> 0) \/
+       (Z.Odd N /\ 0 < my) \/
+       (Z.Odd N /\ 0 < mx /\ 0 = my /\ IZR N <> -1)) ->
+      (forall sa sb, s0 <= sa -> sa < sb -> sb <= s1 -> sf sb < sf sa) /\
+      (forall sa sb, s1 <= sa -> sa < sb -> sb <= s2 -> sf sa < sf sb) /\
+      sf s2 < sf s0.
+  Proof.
+    intros * nge0 c.
+    apply cond_sf_2deriv_neg in c.
+    split.
+    + assert (N = (N+1)-1)%Z as id; try lia.
+      unfold s0.
+      rewrite id.
+      unfold s1.
+      intros.
+      apply (closest_N_LHS _ _ (N+1)%Z); try lra.
+      rewrite <- signeq1_eqv.
+      rewrite <- signeqm1_eqv in c.
+      rewrite sf_2deriv_sign in c.
+      lra.
+      split; try lra.
+      intros [Neq0 s0eq0].
+      rewrite <- sf_2deriv_seq0_eqv in s0eq0.
+      lra.
+      lra.
+    + split.
+      assert (N+2 = (N+1)+1)%Z as id; try lia.
+      unfold s2.
+      rewrite id.
+      unfold s1.
+      intros.
+      apply (closest_N_RHS _ _ (N+1)%Z); try lra.
+      rewrite <- signeq1_eqv.
+      rewrite <- signeqm1_eqv in c.
+      rewrite sf_2deriv_sign in c.
+      lra.
+      split; try lra.
+      intros [Neq0 s0eq0].
+      rewrite <- sf_2deriv_seq0_eqv in s0eq0.
+      lra.
+      lra.
+      apply neg_2derivsf_late_safety_maxima_dominate; try assumption.
+  Qed.
+
 
   (* begin hide *)  
   Lemma spiral_tangent_closest_approach_helper : forall sa sb N,
