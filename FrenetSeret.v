@@ -171,7 +171,7 @@ Ltac ebff :=
 
 
 
-Module FrenetSeret2D (Import p : Path2D).
+Module FrenetSerret2D (Import p : Path2D).
   (* N is a unit vector showing accel direction *)
   Lemma unitN : locally s (fun s => (Nx s)² + (Ny s)² = 1).
   Proof.
@@ -1340,4 +1340,4 @@ Module FrenetSeret2D (Import p : Path2D).
     inversion rest; try reflexivity.
   Qed.
 
-End FrenetSeret2D.
+End FrenetSerret2D.
