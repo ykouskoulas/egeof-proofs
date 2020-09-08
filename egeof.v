@@ -2073,6 +2073,809 @@ These correspond to Theorems 1 and 2 in the paper.
     field.
   Qed.
 
+  Lemma egeof_dNy_eq_nkTy : forall (s:R) (sne0:s<>0),
+      let fx := Fx a in
+      let fy := Fy a in
+      let tx := Derive fx in
+      let ty := Derive fy in
+      let κ s := sqrt ((Derive tx s)² + (Derive ty s)²) in
+      let nx s := / κ s * Derive tx s in
+      let ny s := / κ s * Derive ty s in
+      locally s (fun (s:R) => Derive ny s = - κ s * ty s).
+  Proof.
+    intros.
+
+    assert (locally s (ex_derive tx)) as edtx. {
+      unfold locally.
+      exists (mkposreal _ Rlt_0_1).
+      simpl.
+      intros.
+      specialize (Fx_deriv2 _ zlta y) as d2fx.
+      unfold is_derive_n, Derive_n in d2fx.
+      (match goal with
+      | A : is_derive ?P ?y ?Q |- _ => 
+        change (is_derive tx y Q) in d2fx;
+        exists Q; assumption
+      end). }
+
+    assert (locally s (ex_derive ty)) as edty. {
+      unfold locally.
+      exists (mkposreal _ Rlt_0_1).
+      simpl.
+      intros.
+      specialize (Fy_deriv2 _ zlta y) as d2fy.
+      unfold is_derive_n, Derive_n in d2fy.
+      (match goal with
+      | A : is_derive ?P ?y ?Q |- _ => 
+        change (is_derive ty y Q) in d2fy;
+        exists Q; assumption
+      end). }
+
+    assert (locally s (fun s : R => (tx s)² + (ty s)² = 1)) as uv. {
+      unfold locally.
+      exists (mkposreal _ Rlt_0_1).
+      simpl.
+      intros.
+      specialize (Fx_deriv _ zlta y) as dfx.
+      apply is_derive_unique in dfx.
+      match goal with
+      | A : Derive ?P ?v = ?T |- _ => change (tx y = T) in A
+      end.
+      specialize (Fy_deriv _ zlta y) as dfy.
+      apply is_derive_unique in dfy.
+      match goal with
+      | A : Derive ?P ?v = ?T |- _ => change (ty y = T) in A
+      end.
+      rewrite dfx, dfy, Rplus_comm, sin2_cos2.
+      auto. }
+
+    assert (locally s (fun s : R => (Derive tx s)² + (Derive ty s)² <> 0)) as anz. {
+      assert (0 < Rabs s) as zltas. {
+        unfold Rabs.
+        destruct Rcase_abs; lra. }
+      exists (mkposreal _ zltas).
+      simpl.
+      intros y baly.
+      assert (y <> 0) as yne0. {
+        intro yeq0.
+        rewrite yeq0 in *.
+        unfold ball in baly.
+        simpl in baly.
+        unfold AbsRing_ball, abs, minus, plus, opp in baly.
+        simpl in baly.
+        autorewrite with null in baly.
+        rewrite Rabs_Ropp in baly.
+        lra. }
+
+      specialize (Fx_deriv2 _ zlta y) as d2fx.
+      unfold is_derive_n, Derive_n in d2fx.
+      (match goal with
+      | A : is_derive ?P ?y ?Q |- _ => 
+        change (is_derive tx y Q) in d2fx
+       end).
+      apply is_derive_unique in d2fx.
+
+      specialize (Fy_deriv2 _ zlta y) as d2fy.
+      unfold is_derive_n, Derive_n in d2fy.
+      (match goal with
+       | A : is_derive ?P ?y ?Q |- _ => 
+         change (is_derive ty y Q) in d2fy
+       end).
+      apply is_derive_unique in d2fy.
+      rewrite d2fx, d2fy.
+      
+      fieldrewrite
+        ((- PI * y / (l a)² * sin (1 / 2 * PI * (y / l a)²))² +
+         (PI * y / (l a)² * cos (1 / 2 * PI * (y / l a)²))²)
+        ((y * PI * / (l a)²)² * ((sin (1 / 2 * PI * (y / l a)²))² +
+                                 (cos (1 / 2 * PI * (y / l a)²))²)).
+      
+      apply ane0_lane0; assumption.
+      rewrite sin2_cos2.
+      arn.
+      specialize PI_RGT_0 as pigt0.
+      apply Rmult_integral_contrapositive_currified;
+        (apply Rmult_integral_contrapositive_currified;
+         [apply Rmult_integral_contrapositive_currified; [assumption| lra] |
+          apply Rinv_neq_0_compat;
+          apply Rmult_integral_contrapositive_currified;
+          apply ane0_lane0; assumption]). }
+
+      assert (Derive tx = (fun y => - PI * y / (l a)² * sin (1 / 2 * PI * (y / l a)²))) as dtx. {
+        apply functional_extensionality.
+        intros.
+        specialize (Fx_deriv2 _ zlta x) as d2fx.
+        unfold is_derive_n, Derive_n in d2fx.
+        (match goal with
+         | A : is_derive ?P ?y ?Q |- _ => 
+           change (is_derive tx y Q) in d2fx
+         end).
+        apply is_derive_unique in d2fx.
+        assumption. }
+
+      assert (Derive ty = (fun y => PI * y / (l a)² * cos (1 / 2 * PI * (y / l a)²))) as dty. {
+        apply functional_extensionality.
+        intros.
+      specialize (Fy_deriv2 _ zlta x) as d2y.
+      unfold is_derive_n, Derive_n in d2y.
+      (match goal with
+      | A : is_derive ?P ?y ?Q |- _ => 
+        change (is_derive ty y Q) in d2y
+       end).
+      apply is_derive_unique in d2y.
+      assumption. }
+
+      assert (forall s, (Derive tx s)² + (Derive ty s)² = (PI * s / (l a)²)²) as id. {
+        intros.
+        rewrite dtx, dty.
+        setl ((PI * s0 / (l a)²)² * ((sin (1 / 2 * PI * (s0 / l a)²))² +
+                                     (cos (1 / 2 * PI * (s0 / l a)²))²)).
+        apply ane0_lane0; assumption.
+        rewrite sin2_cos2.
+        field. }
+
+    assert (locally s
+                    (fun s : R =>
+                       ex_derive (fun s0 : R => / κ s0 * Derive tx s0) s)) as ed2txk. {
+      
+      unfold κ.
+      assert (locally s (fun q =>
+                           (fun s0 : R => / Rabs (s0) *
+                                          - s0 * sin (1 / 2 * PI * (s0 / l a)²)) q
+                           =
+                           (fun s0 : R => / sqrt ((Derive tx s0)² + (Derive ty s0)²) *
+                                          Derive tx s0) q
+             )) as id2. {
+
+      assert (0 < Rabs s) as zltas. {
+        unfold Rabs.
+        destruct Rcase_abs; lra. }
+      exists (mkposreal _ zltas).
+      simpl.
+      intros y baly.
+      assert (y <> 0) as yne0. {
+        intro yeq0.
+        rewrite yeq0 in *.
+        unfold ball in baly.
+        simpl in baly.
+        unfold AbsRing_ball, abs, minus, plus, opp in baly.
+        simpl in baly.
+        autorewrite with null in baly.
+        rewrite Rabs_Ropp in baly.
+        lra. }
+
+      rewrite id, dtx, sqrt_Rsqr_abs.
+      specialize PI_RGT_0 as pigt0.
+      assert ((l a)² <> 0) as la2ne0. {
+        apply Rmult_integral_contrapositive_currified;
+          apply ane0_lane0; assumption. }
+      assert (Rabs (PI * y / (l a)²) = PI * / (l a)² * Rabs y) as id3. {
+          unfold Rabs.
+          destruct Rcase_abs;
+            destruct Rcase_abs.
+          + lra.
+          + exfalso.
+            generalize r.
+            change (~ (PI * y / (l a)² < 0)).
+            apply Rle_not_lt.
+            apply Rmult_le_pos.
+            apply Rmult_le_pos; lra.
+            left;
+              apply Rinv_0_lt_compat;
+              apply Rsqr_pos_lt;
+              intro la0;
+              apply la2ne0;
+              rewrite la0;
+              unfold Rsqr;
+              lra.
+          + exfalso.
+            apply Rge_not_lt in r.
+            apply r.
+            setl (- (PI * - y / (l a)²)).
+            intro lane0; apply la2ne0; rewrite lane0; unfold Rsqr; field.
+            setr (- 0).
+            apply Ropp_lt_contravar.
+            apply Rmult_lt_0_compat.
+            apply Rmult_lt_0_compat; try lra.
+            apply Rinv_0_lt_compat;
+              apply Rsqr_pos_lt;
+              intro la0;
+              apply la2ne0;
+              rewrite la0;
+              unfold Rsqr;
+              lra.
+          + lra. }
+      rewrite id3.
+      field.
+      split.
+      assumption.
+      split.
+      apply Rabs_no_R0.
+      lra.
+      lra. }
+
+      clear - id2 anz dtx dty zlta.
+      fllcb anz id2.
+      csb zltrmpr.
+      assert (locally y
+                      (fun q : R =>
+                         / Rabs q * - q * sin (1 / 2 * PI * (q / l a)²) =
+                         / sqrt ((Derive tx q)² + (Derive ty q)²) * Derive tx q
+             )) as id3. {
+        specialize (b y sb).
+        simpl in *.
+        change (forall y, ball s epsq y ->
+               (fun q : R =>
+                  / Rabs q * - q * sin (1 / 2 * PI * (q / l a)²) = 
+                  / sqrt ((Derive tx q)² + (Derive ty q)²) * Derive tx q)
+                 y) in restq.
+        clear - restq b.
+        reseat_locally restq. }
+
+      apply (ex_derive_ext_loc _ _ _ id3).
+      auto_derive.
+      assert (y <> 0) as yne0. {
+        specialize (restp y (a0 y sb)).
+        clear - restp dtx dty zlta.
+        intro yeq0.
+        apply restp.
+        rewrite dtx, dty.
+        setl ((-( PI * y / (l a)²))² * ((sin (1 / 2 * PI * (y / l a)²))² +
+                                        (cos (1 / 2 * PI * (y / l a)²))²)).
+        apply (ane0_lane0 _ zlta).
+        rewrite sin2_cos2.
+        rewrite <- Rsqr_neg.
+        arn.
+        assert (PI * y / (l a)² = 0) as slr. {
+          rewrite yeq0.
+        setl (PI * 0 * / (l a)²).
+        apply (ane0_lane0 _ zlta).
+        arn.
+        reflexivity. }
+      rewrite slr.
+      arn.
+      field. }
+      split; try assumption.
+      split.
+      intro ayeq0.
+      apply yne0.
+      apply Rabs_eq_0.
+      assumption.
+      constructor. }
+
+    assert (locally s
+                    (fun s : R =>
+                       ex_derive (fun s0 : R => / κ s0 * Derive ty s0) s)) as ed2tyk. {
+
+      unfold κ.
+      assert (locally s (fun q =>
+                           (fun s0 : R => / Rabs (s0) *
+                                          s0 * cos (1 / 2 * PI * (s0 / l a)²)) q
+                           =
+                           (fun s0 : R => / sqrt ((Derive tx s0)² + (Derive ty s0)²) *
+                                          Derive ty s0) q
+             )) as id2. {
+
+      assert (0 < Rabs s) as zltas. {
+        unfold Rabs.
+        destruct Rcase_abs; lra. }
+      exists (mkposreal _ zltas).
+      simpl.
+      intros y baly.
+      assert (y <> 0) as yne0. {
+        intro yeq0.
+        rewrite yeq0 in *.
+        unfold ball in baly.
+        simpl in baly.
+        unfold AbsRing_ball, abs, minus, plus, opp in baly.
+        simpl in baly.
+        autorewrite with null in baly.
+        rewrite Rabs_Ropp in baly.
+        lra. }
+
+      rewrite id, dty, sqrt_Rsqr_abs.
+      specialize PI_RGT_0 as pigt0.
+      assert ((l a)² <> 0) as la2ne0. {
+        apply Rmult_integral_contrapositive_currified;
+          apply ane0_lane0; assumption. }
+      assert (Rabs (PI * y / (l a)²) = PI * / (l a)² * Rabs y) as id3. {
+          unfold Rabs.
+          destruct Rcase_abs;
+            destruct Rcase_abs.
+          + lra.
+          + exfalso.
+            generalize r.
+            change (~ (PI * y / (l a)² < 0)).
+            apply Rle_not_lt.
+            apply Rmult_le_pos.
+            apply Rmult_le_pos; lra.
+            left;
+              apply Rinv_0_lt_compat;
+              apply Rsqr_pos_lt;
+              intro la0;
+              apply la2ne0;
+              rewrite la0;
+              unfold Rsqr;
+              lra.
+          + exfalso.
+            apply Rge_not_lt in r.
+            apply r.
+            setl (- (PI * - y / (l a)²)).
+            intro lane0; apply la2ne0; rewrite lane0; unfold Rsqr; field.
+            setr (- 0).
+            apply Ropp_lt_contravar.
+            apply Rmult_lt_0_compat.
+            apply Rmult_lt_0_compat; try lra.
+            apply Rinv_0_lt_compat;
+              apply Rsqr_pos_lt;
+              intro la0;
+              apply la2ne0;
+              rewrite la0;
+              unfold Rsqr;
+              lra.
+          + lra. }
+      rewrite id3.
+      field.
+      split.
+      assumption.
+      split.
+      apply Rabs_no_R0.
+      lra.
+      lra. }
+
+      clear - id2 anz dtx dty zlta.
+      fllcb anz id2.
+      csb zltrmpr.
+      assert (locally y
+                      (fun q : R =>
+                         / Rabs q * q * cos (1 / 2 * PI * (q / l a)²) =
+                         / sqrt ((Derive tx q)² + (Derive ty q)²) * Derive ty q
+             )) as id3. {
+        specialize (b y sb).
+        simpl in *.
+        change (forall y, ball s epsq y ->
+               (fun q : R =>
+                  / Rabs q * q * cos (1 / 2 * PI * (q / l a)²) = 
+                  / sqrt ((Derive tx q)² + (Derive ty q)²) * Derive ty q)
+                 y) in restq.
+        clear - restq b.
+        reseat_locally restq. }
+
+      apply (ex_derive_ext_loc _ _ _ id3).
+      auto_derive.
+      assert (y <> 0) as yne0. {
+        specialize (restp y (a0 y sb)).
+        clear - restp dtx dty zlta.
+        intro yeq0.
+        apply restp.
+        rewrite dtx, dty.
+        setl ((-( PI * y / (l a)²))² * ((sin (1 / 2 * PI * (y / l a)²))² +
+                                        (cos (1 / 2 * PI * (y / l a)²))²)).
+        apply (ane0_lane0 _ zlta).
+        rewrite sin2_cos2.
+        rewrite <- Rsqr_neg.
+        arn.
+        assert (PI * y / (l a)² = 0) as slr. {
+          rewrite yeq0.
+        setl (PI * 0 * / (l a)²).
+        apply (ane0_lane0 _ zlta).
+        arn.
+        reflexivity. }
+      rewrite slr.
+      arn.
+      field. }
+      split; try assumption.
+      split.
+      intro ayeq0.
+      apply yne0.
+      apply Rabs_eq_0.
+      assumption.
+      constructor. }
+
+    apply (dNy_eq_nkTy s fx fy edtx edty uv anz ed2txk ed2tyk).
+  Qed.
+
+  Lemma egeof_dNx_eq_nkTx : forall (s:R) (sne0:s<>0),
+      let fx := Fx a in
+      let fy := Fy a in
+      let tx := Derive fx in
+      let ty := Derive fy in
+      let κ s := sqrt ((Derive tx s)² + (Derive ty s)²) in
+      let nx s := / κ s * Derive tx s in
+      let ny s := / κ s * Derive ty s in
+      locally s (fun (s:R) => Derive nx s = - κ s * tx s).
+  Proof.
+    intros.
+
+    assert (locally s (ex_derive tx)) as edtx. {
+      unfold locally.
+      exists (mkposreal _ Rlt_0_1).
+      simpl.
+      intros.
+      specialize (Fx_deriv2 _ zlta y) as d2fx.
+      unfold is_derive_n, Derive_n in d2fx.
+      (match goal with
+      | A : is_derive ?P ?y ?Q |- _ => 
+        change (is_derive tx y Q) in d2fx;
+        exists Q; assumption
+      end). }
+
+    assert (locally s (ex_derive ty)) as edty. {
+      unfold locally.
+      exists (mkposreal _ Rlt_0_1).
+      simpl.
+      intros.
+      specialize (Fy_deriv2 _ zlta y) as d2fy.
+      unfold is_derive_n, Derive_n in d2fy.
+      (match goal with
+      | A : is_derive ?P ?y ?Q |- _ => 
+        change (is_derive ty y Q) in d2fy;
+        exists Q; assumption
+      end). }
+
+    assert (locally s (fun s : R => (tx s)² + (ty s)² = 1)) as uv. {
+      unfold locally.
+      exists (mkposreal _ Rlt_0_1).
+      simpl.
+      intros.
+      specialize (Fx_deriv _ zlta y) as dfx.
+      apply is_derive_unique in dfx.
+      match goal with
+      | A : Derive ?P ?v = ?T |- _ => change (tx y = T) in A
+      end.
+      specialize (Fy_deriv _ zlta y) as dfy.
+      apply is_derive_unique in dfy.
+      match goal with
+      | A : Derive ?P ?v = ?T |- _ => change (ty y = T) in A
+      end.
+      rewrite dfx, dfy, Rplus_comm, sin2_cos2.
+      auto. }
+
+    assert (locally s (fun s : R => (Derive tx s)² + (Derive ty s)² <> 0)) as anz. {
+      assert (0 < Rabs s) as zltas. {
+        unfold Rabs.
+        destruct Rcase_abs; lra. }
+      exists (mkposreal _ zltas).
+      simpl.
+      intros y baly.
+      assert (y <> 0) as yne0. {
+        intro yeq0.
+        rewrite yeq0 in *.
+        unfold ball in baly.
+        simpl in baly.
+        unfold AbsRing_ball, abs, minus, plus, opp in baly.
+        simpl in baly.
+        autorewrite with null in baly.
+        rewrite Rabs_Ropp in baly.
+        lra. }
+
+      specialize (Fx_deriv2 _ zlta y) as d2fx.
+      unfold is_derive_n, Derive_n in d2fx.
+      (match goal with
+      | A : is_derive ?P ?y ?Q |- _ => 
+        change (is_derive tx y Q) in d2fx
+       end).
+      apply is_derive_unique in d2fx.
+
+      specialize (Fy_deriv2 _ zlta y) as d2fy.
+      unfold is_derive_n, Derive_n in d2fy.
+      (match goal with
+       | A : is_derive ?P ?y ?Q |- _ => 
+         change (is_derive ty y Q) in d2fy
+       end).
+      apply is_derive_unique in d2fy.
+      rewrite d2fx, d2fy.
+      
+      fieldrewrite
+        ((- PI * y / (l a)² * sin (1 / 2 * PI * (y / l a)²))² +
+         (PI * y / (l a)² * cos (1 / 2 * PI * (y / l a)²))²)
+        ((y * PI * / (l a)²)² * ((sin (1 / 2 * PI * (y / l a)²))² +
+                                 (cos (1 / 2 * PI * (y / l a)²))²)).
+      
+      apply ane0_lane0; assumption.
+      rewrite sin2_cos2.
+      arn.
+      specialize PI_RGT_0 as pigt0.
+      apply Rmult_integral_contrapositive_currified;
+        (apply Rmult_integral_contrapositive_currified;
+         [apply Rmult_integral_contrapositive_currified; [assumption| lra] |
+          apply Rinv_neq_0_compat;
+          apply Rmult_integral_contrapositive_currified;
+          apply ane0_lane0; assumption]). }
+
+      assert (Derive tx = (fun y => - PI * y / (l a)² * sin (1 / 2 * PI * (y / l a)²))) as dtx. {
+        apply functional_extensionality.
+        intros.
+        specialize (Fx_deriv2 _ zlta x) as d2fx.
+        unfold is_derive_n, Derive_n in d2fx.
+        (match goal with
+         | A : is_derive ?P ?y ?Q |- _ => 
+           change (is_derive tx y Q) in d2fx
+         end).
+        apply is_derive_unique in d2fx.
+        assumption. }
+
+      assert (Derive ty = (fun y => PI * y / (l a)² * cos (1 / 2 * PI * (y / l a)²))) as dty. {
+        apply functional_extensionality.
+        intros.
+      specialize (Fy_deriv2 _ zlta x) as d2y.
+      unfold is_derive_n, Derive_n in d2y.
+      (match goal with
+      | A : is_derive ?P ?y ?Q |- _ => 
+        change (is_derive ty y Q) in d2y
+       end).
+      apply is_derive_unique in d2y.
+      assumption. }
+
+      assert (forall s, (Derive tx s)² + (Derive ty s)² = (PI * s / (l a)²)²) as id. {
+        intros.
+        rewrite dtx, dty.
+        setl ((PI * s0 / (l a)²)² * ((sin (1 / 2 * PI * (s0 / l a)²))² +
+                                     (cos (1 / 2 * PI * (s0 / l a)²))²)).
+        apply ane0_lane0; assumption.
+        rewrite sin2_cos2.
+        field. }
+
+    assert (locally s
+                    (fun s : R =>
+                       ex_derive (fun s0 : R => / κ s0 * Derive tx s0) s)) as ed2txk. {
+      
+      unfold κ.
+      assert (locally s (fun q =>
+                           (fun s0 : R => / Rabs (s0) *
+                                          - s0 * sin (1 / 2 * PI * (s0 / l a)²)) q
+                           =
+                           (fun s0 : R => / sqrt ((Derive tx s0)² + (Derive ty s0)²) *
+                                          Derive tx s0) q
+             )) as id2. {
+
+      assert (0 < Rabs s) as zltas. {
+        unfold Rabs.
+        destruct Rcase_abs; lra. }
+      exists (mkposreal _ zltas).
+      simpl.
+      intros y baly.
+      assert (y <> 0) as yne0. {
+        intro yeq0.
+        rewrite yeq0 in *.
+        unfold ball in baly.
+        simpl in baly.
+        unfold AbsRing_ball, abs, minus, plus, opp in baly.
+        simpl in baly.
+        autorewrite with null in baly.
+        rewrite Rabs_Ropp in baly.
+        lra. }
+
+      rewrite id, dtx, sqrt_Rsqr_abs.
+      specialize PI_RGT_0 as pigt0.
+      assert ((l a)² <> 0) as la2ne0. {
+        apply Rmult_integral_contrapositive_currified;
+          apply ane0_lane0; assumption. }
+      assert (Rabs (PI * y / (l a)²) = PI * / (l a)² * Rabs y) as id3. {
+          unfold Rabs.
+          destruct Rcase_abs;
+            destruct Rcase_abs.
+          + lra.
+          + exfalso.
+            generalize r.
+            change (~ (PI * y / (l a)² < 0)).
+            apply Rle_not_lt.
+            apply Rmult_le_pos.
+            apply Rmult_le_pos; lra.
+            left;
+              apply Rinv_0_lt_compat;
+              apply Rsqr_pos_lt;
+              intro la0;
+              apply la2ne0;
+              rewrite la0;
+              unfold Rsqr;
+              lra.
+          + exfalso.
+            apply Rge_not_lt in r.
+            apply r.
+            setl (- (PI * - y / (l a)²)).
+            intro lane0; apply la2ne0; rewrite lane0; unfold Rsqr; field.
+            setr (- 0).
+            apply Ropp_lt_contravar.
+            apply Rmult_lt_0_compat.
+            apply Rmult_lt_0_compat; try lra.
+            apply Rinv_0_lt_compat;
+              apply Rsqr_pos_lt;
+              intro la0;
+              apply la2ne0;
+              rewrite la0;
+              unfold Rsqr;
+              lra.
+          + lra. }
+      rewrite id3.
+      field.
+      split.
+      assumption.
+      split.
+      apply Rabs_no_R0.
+      lra.
+      lra. }
+
+      clear - id2 anz dtx dty zlta.
+      fllcb anz id2.
+      csb zltrmpr.
+      assert (locally y
+                      (fun q : R =>
+                         / Rabs q * - q * sin (1 / 2 * PI * (q / l a)²) =
+                         / sqrt ((Derive tx q)² + (Derive ty q)²) * Derive tx q
+             )) as id3. {
+        specialize (b y sb).
+        simpl in *.
+        change (forall y, ball s epsq y ->
+               (fun q : R =>
+                  / Rabs q * - q * sin (1 / 2 * PI * (q / l a)²) = 
+                  / sqrt ((Derive tx q)² + (Derive ty q)²) * Derive tx q)
+                 y) in restq.
+        clear - restq b.
+        reseat_locally restq. }
+
+      apply (ex_derive_ext_loc _ _ _ id3).
+      auto_derive.
+      assert (y <> 0) as yne0. {
+        specialize (restp y (a0 y sb)).
+        clear - restp dtx dty zlta.
+        intro yeq0.
+        apply restp.
+        rewrite dtx, dty.
+        setl ((-( PI * y / (l a)²))² * ((sin (1 / 2 * PI * (y / l a)²))² +
+                                        (cos (1 / 2 * PI * (y / l a)²))²)).
+        apply (ane0_lane0 _ zlta).
+        rewrite sin2_cos2.
+        rewrite <- Rsqr_neg.
+        arn.
+        assert (PI * y / (l a)² = 0) as slr. {
+          rewrite yeq0.
+        setl (PI * 0 * / (l a)²).
+        apply (ane0_lane0 _ zlta).
+        arn.
+        reflexivity. }
+      rewrite slr.
+      arn.
+      field. }
+      split; try assumption.
+      split.
+      intro ayeq0.
+      apply yne0.
+      apply Rabs_eq_0.
+      assumption.
+      constructor. }
+
+    assert (locally s
+                    (fun s : R =>
+                       ex_derive (fun s0 : R => / κ s0 * Derive ty s0) s)) as ed2tyk. {
+
+      unfold κ.
+      assert (locally s (fun q =>
+                           (fun s0 : R => / Rabs (s0) *
+                                          s0 * cos (1 / 2 * PI * (s0 / l a)²)) q
+                           =
+                           (fun s0 : R => / sqrt ((Derive tx s0)² + (Derive ty s0)²) *
+                                          Derive ty s0) q
+             )) as id2. {
+
+      assert (0 < Rabs s) as zltas. {
+        unfold Rabs.
+        destruct Rcase_abs; lra. }
+      exists (mkposreal _ zltas).
+      simpl.
+      intros y baly.
+      assert (y <> 0) as yne0. {
+        intro yeq0.
+        rewrite yeq0 in *.
+        unfold ball in baly.
+        simpl in baly.
+        unfold AbsRing_ball, abs, minus, plus, opp in baly.
+        simpl in baly.
+        autorewrite with null in baly.
+        rewrite Rabs_Ropp in baly.
+        lra. }
+
+      rewrite id, dty, sqrt_Rsqr_abs.
+      specialize PI_RGT_0 as pigt0.
+      assert ((l a)² <> 0) as la2ne0. {
+        apply Rmult_integral_contrapositive_currified;
+          apply ane0_lane0; assumption. }
+      assert (Rabs (PI * y / (l a)²) = PI * / (l a)² * Rabs y) as id3. {
+          unfold Rabs.
+          destruct Rcase_abs;
+            destruct Rcase_abs.
+          + lra.
+          + exfalso.
+            generalize r.
+            change (~ (PI * y / (l a)² < 0)).
+            apply Rle_not_lt.
+            apply Rmult_le_pos.
+            apply Rmult_le_pos; lra.
+            left;
+              apply Rinv_0_lt_compat;
+              apply Rsqr_pos_lt;
+              intro la0;
+              apply la2ne0;
+              rewrite la0;
+              unfold Rsqr;
+              lra.
+          + exfalso.
+            apply Rge_not_lt in r.
+            apply r.
+            setl (- (PI * - y / (l a)²)).
+            intro lane0; apply la2ne0; rewrite lane0; unfold Rsqr; field.
+            setr (- 0).
+            apply Ropp_lt_contravar.
+            apply Rmult_lt_0_compat.
+            apply Rmult_lt_0_compat; try lra.
+            apply Rinv_0_lt_compat;
+              apply Rsqr_pos_lt;
+              intro la0;
+              apply la2ne0;
+              rewrite la0;
+              unfold Rsqr;
+              lra.
+          + lra. }
+      rewrite id3.
+      field.
+      split.
+      assumption.
+      split.
+      apply Rabs_no_R0.
+      lra.
+      lra. }
+
+      clear - id2 anz dtx dty zlta.
+      fllcb anz id2.
+      csb zltrmpr.
+      assert (locally y
+                      (fun q : R =>
+                         / Rabs q * q * cos (1 / 2 * PI * (q / l a)²) =
+                         / sqrt ((Derive tx q)² + (Derive ty q)²) * Derive ty q
+             )) as id3. {
+        specialize (b y sb).
+        simpl in *.
+        change (forall y, ball s epsq y ->
+               (fun q : R =>
+                  / Rabs q * q * cos (1 / 2 * PI * (q / l a)²) = 
+                  / sqrt ((Derive tx q)² + (Derive ty q)²) * Derive ty q)
+                 y) in restq.
+        clear - restq b.
+        reseat_locally restq. }
+
+      apply (ex_derive_ext_loc _ _ _ id3).
+      auto_derive.
+      assert (y <> 0) as yne0. {
+        specialize (restp y (a0 y sb)).
+        clear - restp dtx dty zlta.
+        intro yeq0.
+        apply restp.
+        rewrite dtx, dty.
+        setl ((-( PI * y / (l a)²))² * ((sin (1 / 2 * PI * (y / l a)²))² +
+                                        (cos (1 / 2 * PI * (y / l a)²))²)).
+        apply (ane0_lane0 _ zlta).
+        rewrite sin2_cos2.
+        rewrite <- Rsqr_neg.
+        arn.
+        assert (PI * y / (l a)² = 0) as slr. {
+          rewrite yeq0.
+        setl (PI * 0 * / (l a)²).
+        apply (ane0_lane0 _ zlta).
+        arn.
+        reflexivity. }
+      rewrite slr.
+      arn.
+      field. }
+      split; try assumption.
+      split.
+      intro ayeq0.
+      apply yne0.
+      apply Rabs_eq_0.
+      assumption.
+      constructor. }
+
+    apply (dNx_eq_nkTx s fx fy edtx edty uv anz ed2txk ed2tyk).
+  Qed.
   
   (* Print κ. *)
 
