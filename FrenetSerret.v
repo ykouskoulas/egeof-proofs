@@ -127,34 +127,7 @@ Proof.
   simpl; apply Rmult_comm.
 Qed.
 
-  
-  
-Module Type Path2D.
-  (* position x and y components *)
-  Parameter s : R.
-  Parameter (Fx Fy : R -> R). 
-  Parameter ex_derive_Fx : locally s (fun s => ex_derive Fx s).
-  Parameter ex_derive_Fy : locally s (fun s => ex_derive Fy s).
-
-  (* velocity components *)
-  Definition Tx := Derive Fx. 
-  Definition Ty := Derive Fy.
-  Parameter ex_derive_Tx : locally s (fun s => ex_derive Tx s).
-  Parameter ex_derive_Ty : locally s (fun s => ex_derive Ty s).
-  (* The path (Fx s, Fy s) is parameterized by distance; velocity is 1 *)
-  Parameter unitvelocity : locally s (fun s => (Tx s)² + (Ty s)² = 1).
-  (* curvature is always defined -- no straight motion *)
-  Parameter accel_nonzero : locally s (fun s => (Derive Tx s)² + (Derive Ty s)² <> 0).
-
-  (* accel direction components *)
-  Definition κ s := sqrt ((Derive Tx s)² + (Derive Ty s)²).
-  Definition Nx s := / κ s * Derive Tx s. 
-  Definition Ny s := / κ s * Derive Ty s.
-  Parameter ex_derive_Nx : locally s (fun s => ex_derive Nx s).
-  Parameter ex_derive_Ny : locally s (fun s => ex_derive Ny s).
-End Path2D.
-
-
+(* begin hide *)
 Ltac ebff :=
   let eps := fresh "eps" in
   let rest := fresh "rest" in
@@ -169,9 +142,179 @@ Ltac ebff :=
     specialize (rest y yebs)
   end.
 
+  (* this section gobbles up two locally's in the context *)    
+  (* A : locally s f, B : locally s g  *)
+  (* find locally common ball in context*)
+Ltac fllcb P Q :=
+  let epsp := fresh "epsp" in
+  let restp := fresh "restp" in
+  let epsq := fresh "epsq" in
+  let restq := fresh "restq" in
+  let a := fresh "a" in
+  let b := fresh "b" in
+  let y := fresh "y" in
+  let seby := fresh "seby" in
+  let lii := fresh "lii" in
+  let rii := fresh "rii" in
+  match type of P with
+  | locally ?s ?f =>
+    match type of Q with
+    | locally s ?g =>
+      unfold locally in P, Q;
+      destruct P as [epsp restp];
+      destruct Q as [epsq restq];
+      assert (0 < Rmin epsp epsq) as zltrmpr; 
+      [unfold Rmin;
+       destruct Rle_dec;
+       [destruct epsp;
+        simpl in *; lra|
+        destruct epsq;
+        simpl in *; lra] |];
+      assert (forall y:R, ball s (Rmin epsp epsq) y -> ball s epsp y) as a;
+      [simpl; intros y seby; unfold ball in *; simpl in *; unfold AbsRing_ball in *;
+       apply Rmin_def in seby; destruct seby as [lii rii]; assumption |];
+      assert (forall y:R, ball s (Rmin epsp epsq) y -> ball s epsq y) as b;
+      [simpl; intros y seby; unfold ball in *; simpl in *; unfold AbsRing_ball in *;
+       apply Rmin_def in seby; destruct seby as [lii rii]; assumption |]
+    | _ => fail
+    end
+  | _ => fail
+  end.  
+
+(* this section needs the context to look like this: 
+   A : 0 < eps
+   D : locally s f
+ *)
+Ltac flcb A L :=
+  let epsr := fresh "epsr" in
+  let restr := fresh "restr" in
+  let zltne := fresh "zltne" in
+  let a := fresh "a" in
+  let b := fresh "b" in
+  match type of A with
+  | 0 < ?e =>
+    match type of L with
+    | locally ?s ?f =>
+      match goal with
+      | B : forall y, ball s e y -> ?P y |- _ =>
+        unfold locally in L;
+        destruct L as [epsr restr];
+        assert (0 < Rmin epsr e) as zltne;
+        [apply def_Rmin;
+         split; [destruct epsr; simpl; lra|
+                 assumption] |];
+        assert (forall y:R, ball s (Rmin epsr e) y -> ball s e y) as a;
+        [ simpl; intros y seby; unfold ball in *; simpl in *; unfold AbsRing_ball in *;
+          apply Rmin_def in seby; destruct seby as [lii rii]; assumption|];
+        assert (forall y:R, ball s (Rmin epsr e) y -> ball s epsr y) as b;
+        [ simpl; intros y seby; unfold ball in *; simpl in *; unfold AbsRing_ball in *;
+          apply Rmin_def in seby; destruct seby as [lii rii]; assumption|]
+      | _ => fail
+      end
+    | _ => fail
+    end
+  | _ => fail
+  end.
+
+(* conclude with the smallest ball *)
+Ltac csb egt0 :=
+  let y := fresh "y" in
+  let sb := fresh "sb" in
+  match type of egt0 with
+  | 0 < ?e => 
+    unfold locally;
+    exists (mkposreal _ egt0);
+    simpl; intros y sb
+  end.
 
 
-Module FrenetSerret2D (Import p : Path2D).
+(* specialize with increasing balls *)
+Ltac sib y b :=
+  match type of b with
+  | ball ?s ?e y =>
+    repeat match goal with 
+           | A : forall y, ball s e y -> ?P |- _ =>
+             specialize (A y b);
+             match type of A with
+             | ball ?s1 ?e1 ?y1 => sib y1 A
+             | _ => idtac
+             end
+           end
+  end.
+
+Ltac reseat_locally rests :=
+  let egt0 := fresh "egt0" in
+  let b2 := fresh "b2" in
+  let b3 := fresh "b3" in
+  let y0 := fresh "y0" in
+  let byey0 := fresh "byey0" in
+  let r := fresh "r" in
+  let r0 := fresh "r0" in
+  match type of rests with
+  | forall y, ball ?s ?epss y -> ?P y =>
+    match goal with
+    | b1 : ball s epss ?y |- locally ?y P =>
+      unfold locally;
+      assert (0 < Rmin (s + epss - y) (y - (s - epss))) as egt0;
+      [ unfold ball in b1;
+        simpl in *;
+        unfold AbsRing_ball, abs, minus, plus, opp in *;
+        simpl in *;
+        apply Rabs_def2 in b1;
+        destruct b1 as [b2 b3];
+        unfold Rmin;
+        destruct Rle_dec; lra|];
+      exists (mkposreal _ egt0);
+      simpl;
+      intros y0 byey0;
+      apply rests;
+      unfold ball in *;
+      simpl in *;
+      unfold AbsRing_ball in *;
+      simpl in *;
+      unfold abs, minus, opp, plus in *;
+      simpl in *;
+      clear rests;
+      fieldrewrite (y0 + - s) ((y0 + - y) + (y + - s));
+      eapply Rle_lt_trans; [apply Rabs_triang | unfold Rabs in b1];
+      destruct Rcase_abs as [r | r];
+      unfold Rabs at 2;
+      destruct Rcase_abs as [r0 | r0];
+      try lra;
+      clear r0;
+      unfold Rmin in *;
+      destruct Rle_dec; try lra
+    end
+  end.
+
+(* end hide *)
+
+
+  
+Section FrenetSerret2D.
+  (* position x and y components *)
+  Variable s : R.
+  Variable (Fx Fy : R -> R). 
+  Variable ex_derive_Fx : locally s (fun s => ex_derive Fx s).
+  Variable ex_derive_Fy : locally s (fun s => ex_derive Fy s).
+
+  (* velocity components *)
+  Let Tx := Derive Fx. 
+  Let Ty := Derive Fy.
+  Variable ex_derive_Tx : locally s (fun s => ex_derive Tx s).
+  Variable ex_derive_Ty : locally s (fun s => ex_derive Ty s).
+  (* The path (Fx s, Fy s) is parameterized by distance; velocity is 1 *)
+  Variable unitvelocity : locally s (fun s => (Tx s)² + (Ty s)² = 1).
+  (* curvature is always defined -- no straight motion *)
+  Variable accel_nonzero : locally s (fun s => (Derive Tx s)² + (Derive Ty s)² <> 0).
+
+  (* accel direction components *)
+  Let κ s := sqrt ((Derive Tx s)² + (Derive Ty s)²).
+  Let Nx s := / κ s * Derive Tx s. 
+  Let Ny s := / κ s * Derive Ty s.
+  Variable ex_derive_Nx : locally s (fun s => ex_derive Nx s).
+  Variable ex_derive_Ny : locally s (fun s => ex_derive Ny s).
+
   (* N is a unit vector showing accel direction *)
   Lemma unitN : locally s (fun s => (Nx s)² + (Ny s)² = 1).
   Proof.
@@ -197,6 +340,7 @@ Module FrenetSerret2D (Import p : Path2D).
       apply sqrt_eq_0 in DTx2DTy2eq0; try assumption;
       lra. }
     rewrite Rsqr_sqrt; try assumption.
+    rename s into ps.
     rename y into s.
     setl (((Derive Tx s)² + (Derive Ty s)²)/((Derive Tx s)² + (Derive Ty s)²)).
     change ((Derive Tx s)² + (Derive Ty s)² <> 0).
@@ -212,6 +356,7 @@ Module FrenetSerret2D (Import p : Path2D).
     unfold κ.
     specialize (accel_nonzero) as ne0.
     ebff.
+    rename s into ps.
     rename y into s.
     specialize (Rle_0_sqr (Derive Ty s)) as DTyge0.
     specialize (Rle_0_sqr (Derive Tx s)) as DTxge0.
@@ -226,6 +371,7 @@ Module FrenetSerret2D (Import p : Path2D).
     set (g := (fun u : R => atan2 (Ty u) (Tx u))) in *.
     specialize (unitvelocity) as uv.
     ebff.
+    rename s into ps.
     rename y into s.
     rename rest into uv.
     simpl in *.
@@ -261,6 +407,7 @@ Module FrenetSerret2D (Import p : Path2D).
     set (g := (fun u : R => atan2 (Ty u) (Tx u))) in *.
     specialize (unitvelocity) as uv.
     ebff.
+    rename s into ps.
     rename y into s.
     rename rest into uv.
     simpl in *.
@@ -330,150 +477,6 @@ Module FrenetSerret2D (Import p : Path2D).
     lra.
   Qed.
 
-  (* this section gobbles up two locally's in the context *)    
-  (* A : locally s f, B : locally s g  *)
-  (* find locally common ball in context*)
-  Ltac fllcb P Q :=
-    let epsp := fresh "epsp" in
-    let restp := fresh "restp" in
-    let epsq := fresh "epsq" in
-    let restq := fresh "restq" in
-    let a := fresh "a" in
-    let b := fresh "b" in
-    let y := fresh "y" in
-    let seby := fresh "seby" in
-    let lii := fresh "lii" in
-    let rii := fresh "rii" in
-    match type of P with
-    | locally ?s ?f =>
-      match type of Q with
-      | locally s ?g =>
-        unfold locally in P, Q;
-        destruct P as [epsp restp];
-        destruct Q as [epsq restq];
-        assert (0 < Rmin epsp epsq) as zltrmpr; 
-        [unfold Rmin;
-         destruct Rle_dec;
-         [destruct epsp;
-          simpl in *; lra|
-          destruct epsq;
-          simpl in *; lra] |];
-        assert (forall y:R, ball s (Rmin epsp epsq) y -> ball s epsp y) as a;
-        [simpl; intros y seby; unfold ball in *; simpl in *; unfold AbsRing_ball in *;
-         apply Rmin_def in seby; destruct seby as [lii rii]; assumption |];
-        assert (forall y:R, ball s (Rmin epsp epsq) y -> ball s epsq y) as b;
-        [simpl; intros y seby; unfold ball in *; simpl in *; unfold AbsRing_ball in *;
-         apply Rmin_def in seby; destruct seby as [lii rii]; assumption |]
-      | _ => fail
-      end
-    | _ => fail
-    end.  
-
-  (* this section needs the context to look like this: 
-     A : 0 < eps
-     D : locally s f
-   *)
-  Ltac flcb A L :=
-    let epsr := fresh "epsr" in
-    let restr := fresh "restr" in
-    let zltne := fresh "zltne" in
-    let a := fresh "a" in
-    let b := fresh "b" in
-    match type of A with
-    | 0 < ?e =>
-      match type of L with
-      | locally ?s ?f =>
-        match goal with
-        | B : forall y, ball s e y -> ?P y |- _ =>
-          unfold locally in L;
-          destruct L as [epsr restr];
-          assert (0 < Rmin epsr e) as zltne;
-          [apply def_Rmin;
-           split; [destruct epsr; simpl; lra|
-                   assumption] |];
-          assert (forall y:R, ball s (Rmin epsr e) y -> ball s e y) as a;
-          [ simpl; intros y seby; unfold ball in *; simpl in *; unfold AbsRing_ball in *;
-            apply Rmin_def in seby; destruct seby as [lii rii]; assumption|];
-          assert (forall y:R, ball s (Rmin epsr e) y -> ball s epsr y) as b;
-          [ simpl; intros y seby; unfold ball in *; simpl in *; unfold AbsRing_ball in *;
-            apply Rmin_def in seby; destruct seby as [lii rii]; assumption|]
-        | _ => fail
-        end
-      | _ => fail
-      end
-    | _ => fail
-    end.
-
-  (* conclude with the smallest ball *)
-  Ltac csb egt0 :=
-    let y := fresh "y" in
-    let sb := fresh "sb" in
-    match type of egt0 with
-    | 0 < ?e => 
-      unfold locally;
-      exists (mkposreal _ egt0);
-      simpl; intros y sb
-    end.
-
-    
-  (* specialize with increasing balls *)
-  Ltac sib y b :=
-    match type of b with
-    | ball ?s ?e y =>
-      repeat match goal with 
-             | A : forall y, ball s e y -> ?P |- _ =>
-               specialize (A y b);
-               match type of A with
-               | ball ?s1 ?e1 ?y1 => sib y1 A
-               | _ => idtac
-               end
-             end
-    end.
-
-  Ltac reseat_locally rests :=
-    let egt0 := fresh "egt0" in
-    let b2 := fresh "b2" in
-    let b3 := fresh "b3" in
-    let y0 := fresh "y0" in
-    let byey0 := fresh "byey0" in
-    let r := fresh "r" in
-    let r0 := fresh "r0" in
-    match type of rests with
-    | forall y, ball ?s ?epss y -> ?P y =>
-      match goal with
-      | b1 : ball s epss ?y |- locally ?y P =>
-        unfold locally;
-        assert (0 < Rmin (s + epss - y) (y - (s - epss))) as egt0;
-        [ unfold ball in b1;
-          simpl in *;
-          unfold AbsRing_ball, abs, minus, plus, opp in *;
-          simpl in *;
-          apply Rabs_def2 in b1;
-          destruct b1 as [b2 b3];
-          unfold Rmin;
-          destruct Rle_dec; lra|];
-        exists (mkposreal _ egt0);
-        simpl;
-        intros y0 byey0;
-        apply rests;
-        unfold ball in *;
-        simpl in *;
-        unfold AbsRing_ball in *;
-        simpl in *;
-        unfold abs, minus, opp, plus in *;
-        simpl in *;
-        clear rests;
-        fieldrewrite (y0 + - s) ((y0 + - y) + (y + - s));
-        eapply Rle_lt_trans; [apply Rabs_triang | unfold Rabs in b1];
-        destruct Rcase_abs as [r | r];
-        unfold Rabs at 2;
-        destruct Rcase_abs as [r0 | r0];
-        try lra;
-        clear r0;
-        unfold Rmin in *;
-        destruct Rle_dec; try lra
-      end
-    end.
   
   (* begin hide *)  
   Lemma dTperpT : locally s (fun s => dot_prod (Derive Tx s, Derive Ty s) (Tx s, Ty s) = 0).
@@ -493,7 +496,7 @@ Module FrenetSerret2D (Import p : Path2D).
     specialize (ex_derive_Tx) as DTxd. 
     specialize (ex_derive_Ty) as DTyd.
 
-    assert (locally p.s (fun s : R => (fun t => plus (Tx t * Tx t)
+    assert (locally s (fun s : R => (fun t => plus (Tx t * Tx t)
                                                      (Ty t * Ty t)) s =
                                       (fun _ => 1) s)) as T2. {
       specialize normTeq1 as nteq1.
@@ -522,6 +525,7 @@ Module FrenetSerret2D (Import p : Path2D).
     sib y sb.
     
     rename restr into id.
+    rename s into ps.
     rename y into s.
     rename restq into DTyd.
     rename restp into DTxd.
@@ -591,7 +595,7 @@ Module FrenetSerret2D (Import p : Path2D).
     specialize (ex_derive_Nx) as DNxd.
     specialize (ex_derive_Ny) as DNyd.
 
-    assert (locally p.s (fun s : R => (fun t => plus (Nx t * Nx t)
+    assert (locally s (fun s : R => (fun t => plus (Nx t * Nx t)
                                                      (Ny t * Ny t)) s =
                                       (fun _ => 1) s)) as T2. {
       specialize normNeq1 as nTe1.
@@ -620,6 +624,7 @@ Module FrenetSerret2D (Import p : Path2D).
     sib y sb.
 
     rename restr into id.
+    rename s into ps.
     rename y into s.
     rename restq into DNyd.
     rename restp into DNxd.
@@ -738,9 +743,9 @@ Module FrenetSerret2D (Import p : Path2D).
     assert (locally s (fun s => exists c : R,
                            (c = 1 \/ c = -1) /\
                            (Nx s, Ny s) = (- c * Ty s, c * Tx s))) as col2. {
-      clear - col.
       specialize unitvelocity as uv.
       specialize unitN as un.
+      clear - col uv un.
       fllcb uv un.
       flcb zltrmpr col.
       csb zltne.
@@ -748,6 +753,7 @@ Module FrenetSerret2D (Import p : Path2D).
 
       destruct restr as [c col].
       clear a b a0 b0 sb zltne zltrmpr epsp epsq.
+      rename s into ps.
       rename y into s.
       rename restp into uv.
       rename restq into unitN.
@@ -820,8 +826,8 @@ Module FrenetSerret2D (Import p : Path2D).
 
     assert (locally s (fun s => exists c, (c = 1 \/ c = -1) /\
                                           - Nx s * Ty s + Ny s * Tx s = c)) as les. {
-      clear - col2.
       specialize unitvelocity as uv.
+      clear - col2 uv.
       fllcb col2 uv.
       csb zltrmpr.
       sib y sb.
@@ -1011,8 +1017,8 @@ Module FrenetSerret2D (Import p : Path2D).
            rewrite fz0 in fzc.
            lra. }
 
-    clear - els col2.
     specialize unitvelocity as uv.
+    clear - els col2 uv.
     destruct els as [c [cdef ls]].
     exists c.
     split; try assumption.
@@ -1089,7 +1095,7 @@ Module FrenetSerret2D (Import p : Path2D).
     simpl.
     reseat_locally restr3. }
 
-    sib y sb.
+  sib y sb.
   clear a b a0 b0 a1 b1 a2 b2 a3 b3 a4 b4 a5 b5
         zltne zltne0 zltne1 zltne2 zltne3 zltne4
         restr3 restr4 zltrmpr sb epsp epsq epsr
@@ -1099,9 +1105,11 @@ Module FrenetSerret2D (Import p : Path2D).
   rename restp into uv.
   rename restq into kgt0.
   rename restr into vad.
+  rename accel_nonzero into anz.
   rename restr0 into accel_nonzero.
   rename restr1 into TNeq0.
   rename restr2 into dNNeq0.
+  rename s into ps.
   rename y into s.
   assert ((Tx s)² + (Ty s)² <> 0) as Tne0. {
     intros.
@@ -1178,6 +1186,7 @@ Module FrenetSerret2D (Import p : Path2D).
     csb zltne.
     sib y sb.
 
+    rename s into ps.
     rename y into s.
     rename restr into n21.
     rename restp into ikgt0.
@@ -1242,7 +1251,9 @@ Module FrenetSerret2D (Import p : Path2D).
        N'.T=M need
        T.N=0 *
        (T.N)' = T'.N + T.N' = k + M *)
+    rename s into ps.
     rename y into s.
+
     assert (dot_prod (Derive Nx s, Derive Ny s) (Tx s, Ty s) = alpha) as idTN. {
       rewrite dntc.
       unfold dot_prod.
@@ -1259,8 +1270,8 @@ Module FrenetSerret2D (Import p : Path2D).
       sib s sb.
       intro exdTx2.
       simpl in *.
-      
-      change (forall y:R, ball p.s epsp y ->
+
+      change (forall y:R, ball ps epsp y ->
                           (fun s0 : R => ex_derive Tx s0) y) in exdTx2.
       clear - exdTx2 a.
       reseat_locally exdTx2. }
@@ -1271,7 +1282,7 @@ Module FrenetSerret2D (Import p : Path2D).
       intro exdTy2.
       simpl in *.
       
-      change (forall y:R, ball p.s epsq y ->
+      change (forall y:R, ball ps epsq y ->
                           (fun s0 : R => ex_derive Ty s0) y) in exdTy2.
       clear - exdTy2 b.
       reseat_locally exdTy2. }
@@ -1282,7 +1293,7 @@ Module FrenetSerret2D (Import p : Path2D).
       intro exdNx2.
       simpl in *.
       
-      change (forall y:R, ball p.s epsr y ->
+      change (forall y:R, ball ps epsr y ->
                           (fun s0 : R => ex_derive Nx s0) y) in exdNx2.
       clear - exdNx2 b0.
       reseat_locally exdNx2. }
@@ -1293,7 +1304,7 @@ Module FrenetSerret2D (Import p : Path2D).
       intro exdNy2.
       simpl in *.
 
-      change (forall y:R, ball p.s epsr0 y ->
+      change (forall y:R, ball ps epsr0 y ->
                           (fun s0 : R => ex_derive Ny s0) y) in exdNy2.
       clear - exdNy2 b1.
       reseat_locally exdNy2. }
@@ -1341,3 +1352,4 @@ Module FrenetSerret2D (Import p : Path2D).
   Qed.
 
 End FrenetSerret2D.
+
