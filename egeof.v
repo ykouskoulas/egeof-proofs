@@ -3041,9 +3041,27 @@ These correspond to Theorems 1 and 2 in the paper.
       admit.
   Admitted.
 
-  Axiom osc_circ_approx_lt : forall p s (zlts : 0 < s),
+  Theorem osc_circ_approx_lt : forall p s (zlts : 0 < s),
       s < p -> (Fx a p - occx a s)² + (Fy a p - occy a s)² < (oscr a s)².
-    
+  Proof.
+    intros * zlts sltp.
+    eapply kneser_nesting.
+    split; [apply zlts|apply sltp].
+    specialize (osc_circ_equiv p p) as oce.
+    right.
+    rewrite <- oce.
+    unfold cxf, oscx, cyf, oscy.
+    fieldrewrite (p - p) 0.
+    arn.
+    fieldrewrite (oscr a p * sin (θt a p) +
+                  (Fx a p - oscr a p * sin (θt a p)) - occx a p)
+                 ((Fx a p ) - occx a p).
+    fieldrewrite (oscr a p * (1 - cos (θt a p)) +
+                  (Fy a p - oscr a p * (1 - cos (θt a p))) - occy a p)
+                 ((Fy a p ) - occy a p).
+    reflexivity.
+  Qed.
+
   Theorem osc_circ_approx_le : forall p s (zlts : 0 < s),
       s <= p -> (Fx a p - occx a s)² + (Fy a p - occy a s)² <= (oscr a s)².
   Proof.
