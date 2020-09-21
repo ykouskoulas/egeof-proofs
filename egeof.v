@@ -2073,15 +2073,17 @@ These correspond to Theorems 1 and 2 in the paper.
     field.
   Qed.
 
+
+  Definition fx := Fx a.
+  Definition fy := Fy a.
+  Definition tx := Derive fx.
+  Definition ty := Derive fy.
+  Definition κ s := sqrt ((Derive tx s)² + (Derive ty s)²).
+  Definition nx s := / κ s * Derive tx s.
+  Definition ny s := / κ s * Derive ty s.
+
   Lemma egeof_dNy_eq_nkTy : forall (s:R) (sne0:s<>0),
-      let fx := Fx a in
-      let fy := Fy a in
-      let tx := Derive fx in
-      let ty := Derive fy in
-      let κ s := sqrt ((Derive tx s)² + (Derive ty s)²) in
-      let nx s := / κ s * Derive tx s in
-      let ny s := / κ s * Derive ty s in
-      locally s (fun (s:R) => Derive ny s = - κ s * ty s).
+      Derive ny s = - κ s * ty s.
   Proof.
     intros.
 
@@ -2472,18 +2474,14 @@ These correspond to Theorems 1 and 2 in the paper.
       assumption.
       constructor. }
 
-    apply (dNy_eq_nkTy s fx fy edtx edty uv anz ed2txk ed2tyk).
+    specialize  (dNy_eq_nkTy s fx fy edtx edty uv anz ed2txk ed2tyk) as id2.
+    destruct id2 as [e id2].
+    specialize (id2 s ltac:(apply ball_center)).
+    assumption.
   Qed.
 
   Lemma egeof_dNx_eq_nkTx : forall (s:R) (sne0:s<>0),
-      let fx := Fx a in
-      let fy := Fy a in
-      let tx := Derive fx in
-      let ty := Derive fy in
-      let κ s := sqrt ((Derive tx s)² + (Derive ty s)²) in
-      let nx s := / κ s * Derive tx s in
-      let ny s := / κ s * Derive ty s in
-      locally s (fun (s:R) => Derive nx s = - κ s * tx s).
+      Derive nx s = - κ s * tx s.
   Proof.
     intros.
 
@@ -2874,11 +2872,337 @@ These correspond to Theorems 1 and 2 in the paper.
       assumption.
       constructor. }
 
-    apply (dNx_eq_nkTx s fx fy edtx edty uv anz ed2txk ed2tyk).
+    specialize (dNx_eq_nkTx s fx fy edtx edty uv anz ed2txk ed2tyk) as id2.
+    destruct id2 as [e id2].
+    specialize (id2 s ltac:(apply ball_center)).
+    assumption.
+  Qed.
+
+(* begin hide *)
+  Lemma circle_geometry_trans : forall x0 y0 r0 x1 y1 x y,
+      (x - x0)² + (y - y0)² < r0² <-> 
+      ((x - x1) - (x0 - x1))² + ((y - y1) - (y0 - y1))² < r0².
+  Proof.
+    intros *.
+    split.
+    + intro sc.
+      fieldrewrite (x - x1 - (x0 - x1)) (x - x0).
+      fieldrewrite (y - y1 - (y0 - y1)) (y - y0).
+      assumption.
+    + intro sc.
+      fieldrewrite (x - x0) (x - x1 - (x0 - x1)).
+      fieldrewrite (y - y0) (y - y1 - (y0 - y1)).
+      assumption.
+  Qed.
+
+  Lemma circle_geometry_rot : forall x0 y0 r0 x y θ,
+      let rx := fun x y => x * cos θ + y * sin θ in
+      let ry := fun x y => - x * sin θ + y * cos θ in
+      (x - x0)² + (y - y0)² < r0² <-> 
+      (rx x y - rx x0 y0)² + (ry x y - ry x0 y0)² < r0².
+  Proof.
+    intros *.
+    split.
+    + intro ic.
+      unfold rx, ry.
+      repeat rewrite Rsqr_minus.
+      repeat rewrite Rsqr_plus.
+      set (C := cos θ).
+      set (S := sin θ).
+      setl (x² * (S² + C²) + y² * (S² + C²) + x0² * (S² + C²) + y0² * (S² + C²)
+            - 2 * (x * x0 * (S² + C²) + y * y0 * (S² + C²))).
+      unfold S, C.
+      rewrite sin2_cos2.
+      arn.
+      lrag ic.
+    + intro ic.
+      unfold rx, ry in ic.
+      repeat rewrite Rsqr_minus in ic.
+      repeat rewrite Rsqr_plus in ic.
+      set (C := cos θ) in *.
+      set (S := sin θ) in *.
+      assert (x² * (S² + C²) + y² * (S² + C²) + x0² * (S² + C²) + y0² * (S² + C²)
+            - 2 * (x * x0 * (S² + C²) + y * y0 * (S² + C²)) < r0²) as id. {
+        lrag ic. }
+      unfold S, C in id.
+      rewrite sin2_cos2 in id.
+      lrag id.
+  Qed.
+
+  Lemma circle_geometry_rot_le : forall x0 y0 r0 x y θ,
+      let rx := fun x y => x * cos θ + y * sin θ in
+      let ry := fun x y => - x * sin θ + y * cos θ in
+      (x - x0)² + (y - y0)² <= r0² <-> 
+      (rx x y - rx x0 y0)² + (ry x y - ry x0 y0)² <= r0².
+  Proof.
+    intros *.
+    split.
+    + intro ic.
+      unfold rx, ry.
+      repeat rewrite Rsqr_minus.
+      repeat rewrite Rsqr_plus.
+      set (C := cos θ).
+      set (S := sin θ).
+      setl (x² * (S² + C²) + y² * (S² + C²) + x0² * (S² + C²) + y0² * (S² + C²)
+            - 2 * (x * x0 * (S² + C²) + y * y0 * (S² + C²))).
+      unfold S, C.
+      rewrite sin2_cos2.
+      arn.
+      lrag ic.
+    + intro ic.
+      unfold rx, ry in ic.
+      repeat rewrite Rsqr_minus in ic.
+      repeat rewrite Rsqr_plus in ic.
+      set (C := cos θ) in *.
+      set (S := sin θ) in *.
+      assert (x² * (S² + C²) + y² * (S² + C²) + x0² * (S² + C²) + y0² * (S² + C²)
+            - 2 * (x * x0 * (S² + C²) + y * y0 * (S² + C²)) <= r0²) as id. {
+        lrag ic. }
+      unfold S, C in id.
+      rewrite sin2_cos2 in id.
+      lrag id.
+  Qed.
+
+  
+  Lemma align_x_rot : forall x0 y0,
+      let θ := atan2 y0 x0 in
+      let ry := fun x y => - x * sin θ + y * cos θ in
+      ~ (x0 = 0 /\ y0 = 0) -> ry x0 y0 = 0.
+  Proof.
+    intros.
+    unfold ry, θ.
+    rewrite atan2_sin_id, atan2_cos_id; try assumption.
+    lra.
   Qed.
   
-  (* Print κ. *)
+  Lemma circle_geometry_std_pos : forall x0 r0 r1 x y,
+      0 < r1 < r0 ->
+      0 <= x0 ->
+      x² + y² <= r1² ->
+      x0² < (r0 - r1)² ->
+      (x - x0)² + y² < r0².
+  Proof.
+    intros *.
+    intros [zltr1 r1ltr0] zltx0 isc ssc.
+    repeat rewrite Rsqr_minus.
+    setl ((x² + y²) + x0² - 2 * x * x0).
+    apply (Rle_lt_trans _ (r1² + x0² - 2 * x * x0)).
+    apply (Rplus_le_reg_r (- x0² + 2 * x * x0)).
+    lrag isc.
+    apply (Rlt_trans _ (r1² + (r0 - r1)² - 2 * x * x0)).
+    apply (Rplus_lt_reg_r (- r1² + 2 * x * x0)).
+    lrag ssc.
+    rewrite Rsqr_minus.
+    apply (Rplus_lt_reg_r (- r0²)).
+    setr (2 * 0).
+    setl (2 * (r1² - r0 * r1 - x * x0)).
+    apply Rmult_lt_compat_l; try lra.
+    apply (Rplus_lt_reg_r (x * x0)).
+    setl (- (r1 * (r0 - r1))).
+    arn.
+    destruct (Rle_dec 0 x).
+    + apply (Rlt_le_trans _ (-0)).
+      apply Ropp_lt_contravar.
+      apply Rmult_lt_0_compat; lra.
+      setl 0.
+      apply Rmult_le_pos;
+        assumption.
+    + apply Rnot_le_lt in n.
+      destruct zltx0 as [zltx0 |zeqx0].
+      ++ setr (- ((-x)*x0)).
+         apply Ropp_lt_contravar.
+         apply Rsqr_incrst_0 in ssc; try lra.
+         apply (Rle_lt_trans _ (r1 * x0));
+           [| apply Rmult_lt_compat_l;
+              assumption].
+         apply Rmult_le_compat_r.
+         lra.
+         rewrite <- Rabs_left; try assumption.
+         rewrite <- (Rabs_right r1); try lra.
+         apply Rsqr_le_abs_0.
+         apply (Rle_trans _ (x² + y²)); try assumption.
+         apply (Rplus_le_reg_r (-x²)).
+         setl 0.
+         setr (y²).
+         apply Rle_0_sqr.
+      ++ subst.
+         setr (- 0).
+         apply Ropp_lt_contravar.
+         apply Rmult_lt_0_compat.
+         assumption.
+         lra.
+  Qed.
 
+  Lemma circle_geometry_std_neg : forall x0 r0 r1 x y,
+      0 < r1 < r0 ->
+      x0 < 0 ->
+      x² + y² <= r1² ->
+      x0² < (r0 - r1)² ->
+      (x - x0)² + y² < r0².
+  Proof.
+    intros *.
+    intros zltr1ltr0 zltx0 isc ssc.
+    set (x0' := -x0).
+    set (x' := -x).
+    assert (0 <= x0'); try (unfold x0'; lra).
+    setl (((-x) - (-x0))² + y²).
+    change ((x' - x0')² + y² < r0²).
+    rewrite (Rsqr_neg x) in isc.
+    rewrite (Rsqr_neg x0) in ssc.
+    eapply circle_geometry_std_pos.
+    apply zltr1ltr0.
+    assumption.
+    assumption.
+    assumption.
+  Qed.
+
+  
+  Lemma circle_geometry_std : forall x0 r0 r1 x y,
+      0 < r1 < r0 ->
+      x² + y² <= r1² ->
+      x0² < (r0 - r1)² ->
+      (x - x0)² + y² < r0².
+  Proof.
+    intros.
+    destruct (Rle_dec 0 x0).
+    eapply circle_geometry_std_pos;[apply H | | | ]; try assumption.
+    apply Rnot_le_lt in n.
+    eapply circle_geometry_std_neg;[apply H | | | ]; try assumption.
+  Qed.
+  
+  Lemma circle_geometry_ncoinc : forall x0 y0 r0 x1 y1 r1 x y,
+      ~ (x0 - x1 = 0 /\ y0 - y1 = 0) ->
+      0 < r1 < r0 -> 
+      (x - x1)² + (y - y1)² <= r1² ->
+      (x0 - x1)² + (y0 - y1)² < (r0 - r1)² ->
+      (x - x0)² + (y - y0)² < r0².
+  Proof.
+    intros *.
+    intros nc [zltr1 r1ltr0] isc ssc.
+    rewrite (circle_geometry_trans _ _ _ x1 y1).
+    set (x' := x-x1) in *.
+    set (y' := y-y1) in *.
+    set (x0' := x0-x1) in *.
+    set (y0' := y0-y1) in *.
+    destruct (Req_dec y0' 0) as [y0'eq0 | y0'ne0].
+    + rewrite y0'eq0 in *.
+      autorewrite with null in *.
+      eapply circle_geometry_std.
+      split.
+      apply zltr1.
+      assumption.
+      assumption.
+      assumption.
+    + set (θ := atan2 y0' x0').
+      rewrite (circle_geometry_rot _ _ _ _ _ θ).
+      rewrite <- (Rminus_0_r x'), <- (Rminus_0_r y') in isc.
+      rewrite (circle_geometry_rot_le _ _ _ _ _ θ) in isc.
+      set (x'' := x' * cos θ + y' * sin θ) in *.
+      set (y'' := - x' * sin θ + y' * cos θ) in *.
+      autorewrite with null in isc.
+      set (x0'' := x0' * cos θ + y0' * sin θ) in *.
+      set (y0'' := - x0' * sin θ + y0' * cos θ) in *.
+      eapply circle_geometry_std.
+      split.
+      apply zltr1.
+      assumption.
+      assert (y0'' = 0) as id. {
+        apply (align_x_rot x0' y0').
+        assumption. }
+      rewrite id.
+      arn.
+      assumption.
+      clear - ssc nc.
+      unfold x0''.
+      clear x0''.
+      unfold θ.
+      rewrite atan2_sin_id, atan2_cos_id; try assumption.
+      repeat rewrite <- Rsqr_pow2.
+      setl (((x0'² + y0'²) * / sqrt (x0'² + y0'²))²).
+      apply posss in nc;
+      intro sseq0;
+      apply sqrt_eq_0 in sseq0;
+        [unfold Rsqr in nc;
+         rewrite sseq0 in nc;
+         lra|
+         unfold Rsqr in nc;
+         left; assumption].
+      rewrite Rsqr_mult, Rsqr_inv, Rsqr_sqrt.
+      setl (x0'² + y0'²).
+      apply posss in nc.
+      intro sseq0.
+      unfold Rsqr in nc;
+        rewrite sseq0 in nc;
+        lra.
+      assumption.
+      apply posss in nc.
+      left; assumption.
+      unfold Rsqr.
+      apply posss in nc;
+      intro sseq0;
+      apply sqrt_eq_0 in sseq0;
+        [unfold Rsqr in nc;
+         rewrite sseq0 in nc;
+         lra|
+         unfold Rsqr in nc;
+         left; assumption].
+  Qed.
+
+  Lemma circle_geometry_coinc : forall x0 y0 r0 x1 y1 r1 x y,
+      (x0 - x1 = 0 /\ y0 - y1 = 0) ->
+      0 < r1 < r0 -> 
+      (x - x1)² + (y - y1)² <= r1² ->
+      (x0 - x1)² + (y0 - y1)² < (r0 - r1)² ->
+      (x - x0)² + (y - y0)² < r0².
+  Proof.
+    intros *.
+    intros [ncx ncy] [zltr1 r1ltr0] isc ssc.
+    rewrite ncx, ncy in ssc.
+    apply Rminus_diag_uniq in ncx.
+    apply Rminus_diag_uniq in ncy.
+    rewrite ncx, ncy in *.
+    apply (Rle_lt_trans _ (r1²)).
+    assumption.
+    apply Rsqr_incrst_1.
+    assumption.
+    left; assumption.
+    lra.
+  Qed.
+(* end hide *)
+
+  Lemma circle_geometry : forall x0 y0 r0 x1 y1 r1 x y,
+      0 < r1 < r0 -> 
+      (x - x1)² + (y - y1)² <= r1² ->
+      (x0 - x1)² + (y0 - y1)² < (r0 - r1)² ->
+      (x - x0)² + (y - y0)² < r0².
+  Proof.
+    intros *.
+    destruct (Req_dec (x0 - x1) 0) as [x1x00 | x1x0ne0].
+    destruct (Req_dec (y0 - y1) 0) as [y1y00 | y1y0ne0].
+    assert (x0 - x1 = 0 /\ y0 - y1 = 0) as coinc; try lra.
+    apply circle_geometry_coinc; assumption.
+    assert (~(x0 - x1 = 0 /\ y0 - y1 = 0)) as ncoinc; try lra.
+    apply circle_geometry_ncoinc; assumption.
+    assert (~(x0 - x1 = 0 /\ y0 - y1 = 0)) as ncoinc; try lra.
+    apply circle_geometry_ncoinc; assumption.
+  Qed.    
+
+  
+  Theorem kneser_nesting : forall s0 s1 x y,
+      0 < s0 < s1 -> 
+      (x - occx a s1)² + (y - occy a s1)² <= (oscr a s1)² ->
+      (x - occx a s0)² + (y - occy a s0)² < (oscr a s0)².
+  Proof.
+    intros *.
+    intros [zlts0 s0lts1] isc.
+    set (x1 := occx a s1) in *.
+    set (y1 := occy a s1) in *.
+    set (x0 := occx a s0) in *.
+    set (y0 := occy a s0) in *.
+    set (r0 := oscr a s0) in *.
+    set (r1 := oscr a s1) in *.
+  Admitted.
+  
   (* Lemma kdef_poss : forall s, *)
   (*     0 < s -> κ s = / oscr a s. *)
   (* Proof. *)
@@ -13138,20 +13462,20 @@ Qed.
       apply euler_tan_pt; assumption.
   Qed.
       
-  Lemma sign_insensitive_pattern : forall fx fy gx gy,
-      ~(fx = 0 /\ fy = 0) ->
+  Lemma sign_insensitive_pattern : forall jx jy gx gy,
+      ~(jx = 0 /\ jy = 0) ->
       ~(gx = 0 /\ gy = 0) ->
-      fy * gx = fx * gy ->
-      let M := sqrt((fx² + fy²)/(gx² + gy²)) in
+      jy * gx = jx * gy ->
+      let M := sqrt((jx² + jy²)/(gx² + gy²)) in
       (0 < M) /\
-      ((fy = M * gy /\ fx = M * gx) \/ (fy = M * - gy /\ fx = M * - gx)).
+      ((jy = M * gy /\ jx = M * gx) \/ (jy = M * - gy /\ jx = M * - gx)).
   Proof.
     intros *.
     intros fno gno inv.
     specialize (posss _ _ fno) as zltf2.
     specialize (posss _ _ gno) as zltg2.
     assert (0 < / (gx² + gy²)) as zltgi; try zltab.
-    assert (0 < / (fx² + fy²)) as zltfi; try zltab.
+    assert (0 < / (jx² + jy²)) as zltfi; try zltab.
     generalize zltf2; intro zltf3.
     generalize zltg2; intro zltg3.
     generalize zltgi; intro zltgj.
@@ -13174,14 +13498,14 @@ Qed.
       [|destruct (Req_dec gx 0) as [gxeq0 | gxne0]].
     + rewrite gyeq0 in *.
       assert (gx <> 0) as gxne0; try lra.
-      assert (fy = 0) as fyeq0. {
+      assert (jy = 0) as jyeq0. {
         apply (Rmult_eq_reg_r gx); try lra. }
-      rewrite fyeq0.
+      rewrite jyeq0.
       autorewrite with null in *.
-      specialize (Rle_0_sqr fx) as zlefx2.
+      specialize (Rle_0_sqr jx) as zlejx2.
       rewrite <- RmultRinv.
       rewrite sqrt_mult_alt; try assumption.
-      destruct (Rle_dec 0 fx) as [zlefx|zgtfx].
+      destruct (Rle_dec 0 jx) as [zlejx|zgtjx].
       ++ rewrite sqrt_Rsqr; try lra.
          rewrite <- Rsqr_inv; try lra.
          destruct (Rlt_dec 0 gx) as [zlegx|zgtgx].
@@ -13201,7 +13525,7 @@ Qed.
          right.
          split; auto.
          field; lra.
-      ++ apply Rnot_le_lt in zgtfx.
+      ++ apply Rnot_le_lt in zgtjx.
          rewrite sqrt_Rsqr_abs, Rabs_left; try lra.
          rewrite <- Rsqr_inv; try lra.
          destruct (Rlt_dec 0 gx) as [zlegx|zgtgx].
@@ -13222,14 +13546,14 @@ Qed.
          split; auto.
          field; lra.
     + rewrite gxeq0 in *.
-      assert (fx = 0) as fxeq0. {
+      assert (jx = 0) as jxeq0. {
         apply (Rmult_eq_reg_r gy); try lra. }
-      rewrite fxeq0.
+      rewrite jxeq0.
       autorewrite with null in *.
-      specialize (Rle_0_sqr fy) as zlefy2.
+      specialize (Rle_0_sqr jy) as zlejy2.
       rewrite <- RmultRinv.
       rewrite sqrt_mult_alt; try assumption.
-      destruct (Rle_dec 0 fy) as [zlefy|zgtfy].
+      destruct (Rle_dec 0 jy) as [zlejy|zgtjy].
       ++ rewrite sqrt_Rsqr; try lra.
          rewrite <- Rsqr_inv; try lra.
          destruct (Rlt_dec 0 gy) as [zlegy|zgtgy].
@@ -13249,7 +13573,7 @@ Qed.
          right.
          split; auto.
          field; lra.
-      ++ apply Rnot_le_lt in zgtfy.
+      ++ apply Rnot_le_lt in zgtjy.
          rewrite sqrt_Rsqr_abs, Rabs_left; try lra.
          rewrite <- Rsqr_inv; try lra.
          destruct (Rlt_dec 0 gy) as [zlegy|zgtgy].
@@ -13272,59 +13596,59 @@ Qed.
     + rewrite <- RmultRinv.
       rewrite sqrt_mult_alt; try lra.
 
-      assert (fx <> 0) as fxne0. {
-        intro fxeq0.
-        rewrite fxeq0 in *.
+      assert (jx <> 0) as jxne0. {
+        intro jxeq0.
+        rewrite jxeq0 in *.
         autorewrite with null in *.
-        assert (fy = 0) as fyeq0;
+        assert (jy = 0) as jyeq0;
           try (apply (Rmult_eq_reg_r gx); lra).
         apply fno; lra. }
 
-      assert (fy <> 0) as fyne0. {
-        intro fyeq0.
-        rewrite fyeq0 in *.
+      assert (jy <> 0) as jyne0. {
+        intro jyeq0.
+        rewrite jyeq0 in *.
         autorewrite with null in *.
-        apply fxne0.
+        apply jxne0.
         apply (Rmult_eq_reg_r gy); lra. }
       
-      destruct (Rle_dec 0 fy) as [zlefy|zgtfy];
-          [destruct zlefy as [zltfy|zeqfy];
+      destruct (Rle_dec 0 jy) as [zlejy|zgtjy];
+          [destruct zlejy as [zltjy|zeqjy];
            [|exfalso;
-             symmetry in zeqfy;
-             apply fyne0;
+             symmetry in zeqjy;
+             apply jyne0;
              assumption]|
-           apply Rnot_le_lt in zgtfy].
+           apply Rnot_le_lt in zgtjy].
       ++ destruct (Rlt_dec 0 gy) as [zlegy|zgtgy].
          left.
-         assert (fy = sqrt (fx² + fy²) * sqrt (/ (gx² + gy²)) * gy) as id. {
-           apply (Rmult_eq_reg_l (sqrt (/ (fx² + fy²)))); try lra.
+         assert (jy = sqrt (jx² + jy²) * sqrt (/ (gx² + gy²)) * gy) as id. {
+           apply (Rmult_eq_reg_l (sqrt (/ (jx² + jy²)))); try lra.
            repeat rewrite <- Rmult_assoc.
            rewrite <- sqrt_mult_alt; try lra.
-           fieldrewrite (/ (fx² + fy²) * (fx² + fy²)) 1;
+           fieldrewrite (/ (jx² + jy²) * (jx² + jy²)) 1;
              try (unfold Rsqr in zltf2; lra).
            rewrite sqrt_1.
            arn.
-           rewrite <- (sqrt_Rsqr fy) at 2; try lra.
+           rewrite <- (sqrt_Rsqr jy) at 2; try lra.
            rewrite <- (sqrt_Rsqr gy) at 2; try lra.
            repeat rewrite <- sqrt_mult_alt; try lra.
            apply f_equal.
-           specialize (Rlt_0_sqr fy ltac:(lra)) as zltfy2.
+           specialize (Rlt_0_sqr jy ltac:(lra)) as zltjy2.
            specialize (Rlt_0_sqr gy ltac:(lra)) as zltgy2.
-           rewrite <- (Rinv_involutive (fy²)) at 2; try lra.
+           rewrite <- (Rinv_involutive (jy²)) at 2; try lra.
            rewrite <- (Rinv_involutive (gy²)) at 2; try lra.
            rewrite <- Rinv_mult_distr; try zltab.
            rewrite <- Rinv_mult_distr; try zltab.
-           fieldrewrite ((fx² + fy²) * / fy²) ((fx/fy)² + 1); try lra.
+           fieldrewrite ((jx² + jy²) * / jy²) ((jx/jy)² + 1); try lra.
            fieldrewrite ((gx² + gy²) * / gy²) ((gx/gy)² + 1); try lra.
            apply f_equal.
            apply (Rplus_eq_reg_r (-1)).
-           setl (fx / fy)²; try lra.
+           setl (jx / jy)²; try lra.
            setr (gx / gy)²; try lra.
            apply f_equal.
-           apply (Rmult_eq_reg_r (fy * gy));
+           apply (Rmult_eq_reg_r (jy * gy));
              try (apply Rmult_integral_contrapositive_currified; lra).
-           setr (fy * gx); try lra.
-           setl (fx * gy); try lra. }
+           setr (jy * gx); try lra.
+           setl (jx * gy); try lra. }
          split; try assumption.
          apply (Rmult_eq_reg_r gy); try lra.
          rewrite <- inv.
@@ -13345,37 +13669,37 @@ Qed.
            assumption. }
          assert (0 < / (hx² + hy²)) as zlthi; try zltab.
          
-         assert (fy = sqrt (fx² + fy²) * sqrt (/ (hx² + hy²)) * hy) as id. {
-           apply (Rmult_eq_reg_l (sqrt (/ (fx² + fy²)))); try lra.
+         assert (jy = sqrt (jx² + jy²) * sqrt (/ (hx² + hy²)) * hy) as id. {
+           apply (Rmult_eq_reg_l (sqrt (/ (jx² + jy²)))); try lra.
            repeat rewrite <- Rmult_assoc.
            rewrite <- sqrt_mult_alt; try lra.
-           fieldrewrite (/ (fx² + fy²) * (fx² + fy²)) 1;
+           fieldrewrite (/ (jx² + jy²) * (jx² + jy²)) 1;
              try (unfold Rsqr in zltf2; lra).
            rewrite sqrt_1.
            arn.
-           rewrite <- (sqrt_Rsqr fy) at 2; try lra.
+           rewrite <- (sqrt_Rsqr jy) at 2; try lra.
            rewrite <- (sqrt_Rsqr hy) at 2; try lra.
            repeat rewrite <- sqrt_mult_alt; try lra.
            apply f_equal.
-           specialize (Rlt_0_sqr fy ltac:(lra)) as zltfy2.
+           specialize (Rlt_0_sqr jy ltac:(lra)) as zltjy2.
            specialize (Rlt_0_sqr hy ltac:(lra)) as zltgy2.
-           rewrite <- (Rinv_involutive (fy²)) at 2; try lra.
+           rewrite <- (Rinv_involutive (jy²)) at 2; try lra.
            rewrite <- (Rinv_involutive (hy²)) at 2; try lra.
            rewrite <- Rinv_mult_distr; try zltab.
            rewrite <- Rinv_mult_distr; try zltab.
-           fieldrewrite ((fx² + fy²) * / fy²) ((fx/fy)² + 1); try lra.
+           fieldrewrite ((jx² + jy²) * / jy²) ((jx/jy)² + 1); try lra.
            fieldrewrite ((hx² + hy²) * / hy²) ((hx/hy)² + 1); try lra.
            apply f_equal.
            apply (Rplus_eq_reg_r (-1)).
-           setl (fx / fy)²; try lra.
+           setl (jx / jy)²; try lra.
            setr (hx / hy)²; try lra.
            apply f_equal.
-           apply (Rmult_eq_reg_r (fy * hy));
+           apply (Rmult_eq_reg_r (jy * hy));
              try (apply Rmult_integral_contrapositive_currified; lra).
            unfold hx, hy.
            apply (Rmult_eq_reg_r (-1)); try discrR.
-           setr (fy * gx); try lra.
-           setl (fx * gy); try lra. }
+           setr (jy * gx); try lra.
+           setl (jx * gy); try lra. }
          split; try assumption.
          apply (Rmult_eq_reg_r (gy)); try lra.
          rewrite <- inv.
@@ -13384,13 +13708,13 @@ Qed.
          unfold hy at 2 in id.
          lrag id.
 
-      ++ assert (0 < - fy) as zltdz; try lra.
-         rewrite (Rsqr_neg fy).
-         rewrite (Rsqr_neg fx).
-         rewrite <- (Ropp_involutive fy) at 1 4.
-         rewrite <- (Ropp_involutive fx) at 2 5.
-         set (cx := (-fx)) in *.
-         set (cy := (-fy)) in *.
+      ++ assert (0 < - jy) as zltdz; try lra.
+         rewrite (Rsqr_neg jy).
+         rewrite (Rsqr_neg jx).
+         rewrite <- (Ropp_involutive jy) at 1 4.
+         rewrite <- (Ropp_involutive jx) at 2 5.
+         set (cx := (-jx)) in *.
+         set (cy := (-jy)) in *.
          assert (0 < cx² + cy²) as zltc2. {
            unfold cx, cy.
            repeat rewrite <- Rsqr_neg.
@@ -13413,7 +13737,7 @@ Qed.
            rewrite <- (sqrt_Rsqr gy) at 2; try lra.
            repeat rewrite <- sqrt_mult_alt; try lra.
            apply f_equal.
-           specialize (Rlt_0_sqr cy ltac:(lra)) as zltfy2.
+           specialize (Rlt_0_sqr cy ltac:(lra)) as zltjy2.
            specialize (Rlt_0_sqr gy ltac:(lra)) as zltgy2.
            rewrite <- (Rinv_involutive (cy²)) at 2; try lra.
            rewrite <- (Rinv_involutive (gy²)) at 2; try lra.
@@ -13429,15 +13753,15 @@ Qed.
            apply (Rmult_eq_reg_r (cy * gy));
              try (apply Rmult_integral_contrapositive_currified; lra).
            unfold cx, cy.
-           setr (- (fy * gx)); try lra.
-           setl (- (fx * gy)); try lra. }
+           setr (- (jy * gx)); try lra.
+           setl (- (jx * gy)); try lra. }
          split; try lra.
          apply (Rmult_eq_reg_r gy); try lra.
          unfold cx at 1.
-         setl (fx * gy).
+         setl (jx * gy).
          rewrite <- inv.
          apply (Rmult_eq_reg_r (- /gx)); try zltab.
-         setl (- fy); try lra.
+         setl (- jy); try lra.
          setr (sqrt (cx² + cy²) * sqrt (/ (gx² + gy²)) * gy); try lra.
          assumption.
 
@@ -13467,7 +13791,7 @@ Qed.
            rewrite <- (sqrt_Rsqr hy) at 2; try lra.
            repeat rewrite <- sqrt_mult_alt; try lra.
            apply f_equal.
-           specialize (Rlt_0_sqr cy ltac:(lra)) as zltfy2.
+           specialize (Rlt_0_sqr cy ltac:(lra)) as zltjy2.
            specialize (Rlt_0_sqr hy ltac:(lra)) as zltgy2.
            rewrite <- (Rinv_involutive (cy²)) at 2; try lra.
            rewrite <- (Rinv_involutive (hy²)) at 2; try lra.
@@ -13485,16 +13809,16 @@ Qed.
            unfold hx, hy.
            apply (Rmult_eq_reg_r (-1)); try discrR.
            unfold cx, cy.
-           setr (- (fy * gx)); try lra.
-           setl (- (fx * gy)); try lra. }
+           setr (- (jy * gx)); try lra.
+           setl (- (jx * gy)); try lra. }
          unfold hy in id at 2.
          split; try lra.
          apply (Rmult_eq_reg_r (- gy)); try lra.
          unfold cx at 1.
-         setl (- (fx * gy)).
+         setl (- (jx * gy)).
          rewrite <- inv.
          apply (Rmult_eq_reg_r (/gx)); try zltab.
-         setl (- fy); try lra.
+         setl (- jy); try lra.
          setr (sqrt (cx² + cy²) * sqrt (/ (hx² + hy²)) * - gy); try lra.
          assumption.
   Qed.         
