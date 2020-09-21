@@ -1568,6 +1568,28 @@ These correspond to Theorems 1 and 2 in the paper.
     assumption.
   Qed.
 
+  Lemma dfx :
+    Derive fx = (fun y => cos (1 / 2 * PI * (y / l a)²)).
+  Proof.
+    intros.
+    apply functional_extensionality.
+    intros.
+    specialize (Fx_deriv _ zlta x) as d2fx.
+    apply is_derive_unique in d2fx.
+    assumption.
+  Qed.
+  
+  Lemma dfy : 
+    Derive fy = (fun y => sin (1 / 2 * PI * (y / l a)²)).
+  Proof.
+    intros.
+    apply functional_extensionality.
+    intros.
+    specialize (Fy_deriv _ zlta x) as d2y.
+    apply is_derive_unique in d2y.
+    assumption.
+  Qed.
+  
   Lemma dts2id : forall s,
       (Derive tx s)² + (Derive ty s)² = (PI * s / (l a)²)².
   Proof.
@@ -2993,7 +3015,63 @@ These correspond to Theorems 1 and 2 in the paper.
     apply Rmult_lt_0_compat; assumption.
     apply Rmult_integral_contrapositive_currified; lra.
   Qed.
-  
+
+  Lemma egeof_Ny_eq_Tx : forall (s:R) (zlts : 0 < s),
+      ny s = tx s.
+  Proof.
+    intros * zlts.
+    unfold ny, tx.
+    rewrite dty, dfx.
+    specialize (kpos_poss s zlts) as kps.
+    rewrite (kdef_poss s zlts) in *.
+    unfold oscr in *.
+    rewrite Rinv_involutive in kps;
+      [|apply Rmult_integral_contrapositive_currified; lra].
+    rewrite Rinv_involutive;
+      [|apply Rinv_neq_0_compat; lra].
+    specialize PI_RGT_0 as pigt0.
+    unfold l at 1.
+    rewrite Rsqr_sqrt.
+    2 : {
+      setr (PI * / a); try lra.
+      left;
+        apply Rmult_lt_0_compat;
+        [|apply Rinv_0_lt_compat]; lra. }
+    fieldrewrite (/ (a * s) * (PI * s / (PI / a) *
+                               cos (1 / 2 * PI * (s / l a)²))) (
+                   cos (1 / 2 * PI * (s / l a)²)).
+    lra.
+    reflexivity.
+  Qed.
+
+  Lemma egeof_Nx_eq_nTy : forall (s:R) (zlts : 0 < s),
+      nx s = - ty s.
+  Proof.
+    intros * zlts.
+    unfold nx, ty.
+    rewrite dtx, dfy.
+    specialize (kpos_poss s zlts) as kps.
+    rewrite (kdef_poss s zlts) in *.
+    unfold oscr in *.
+    rewrite Rinv_involutive in kps;
+      [|apply Rmult_integral_contrapositive_currified; lra].
+    rewrite Rinv_involutive;
+      [|apply Rinv_neq_0_compat; lra].
+    specialize PI_RGT_0 as pigt0.
+    unfold l at 1.
+    rewrite Rsqr_sqrt.
+    2 : {
+      setr (PI * / a); try lra.
+      left;
+        apply Rmult_lt_0_compat;
+        [|apply Rinv_0_lt_compat]; lra. }
+    fieldrewrite (/ (a * s) * (- PI * s / (PI / a) *
+                                 sin (1 / 2 * PI * (s / l a)²)))
+    (- sin (1 / 2 * PI * (s / l a)²)).
+    lra.
+    reflexivity.
+  Qed.
+
   Theorem kneser_nesting : forall s0 s1 x y,
       0 < s0 < s1 -> 
       (x - occx a s1)² + (y - occy a s1)² <= (oscr a s1)² ->
