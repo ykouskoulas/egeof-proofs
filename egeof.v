@@ -3398,21 +3398,181 @@ These correspond to Theorems 1 and 2 in the paper.
     apply Rmult_integral_contrapositive_currified; try lra.
   Qed.
 
-  Axiom straight_line_shortest_path : forall pathx pathy s0 s1 d,
+  Axiom path_length_lower_bound : forall pathx pathy s0 s1 d,
       is_RInt (magnitude (Derive pathx) (Derive pathy)) s0 s1 d ->
       sqrt ((pathx s0 - pathx s1)² + (pathy s0 - pathy s1)²) <= d.
   
-  Axiom straight_line_path_length : forall pathx pathy s0 s1,
+  (* Lemma straight_line_path_length : forall pathx pathy s0 s1, *)
+  (*     0 < s0 < s1 ->  *)
+  (*     (forall s, s0 < s < s1 -> *)
+  (*                pathx s = pathx s1 * (s - s0) / (s1 - s0) + pathx s0 /\ *)
+  (*                pathy s = pathy s1 * (s - s0) / (s1 - s0) + pathy s0) -> *)
+  (*     is_RInt (magnitude (Derive pathx) (Derive pathy)) s0 s1 *)
+  (*             (sqrt ((pathx s0 - pathx s1)² + (pathy s0 - pathy s1)²)). *)
+  (* Proof. *)
+  (*   intros * srd sl. *)
+  (*   assert (forall s : R, Rmin s0 s1 < s < Rmax s0 s1 -> *)
+  (*                         (magnitude (Derive (fun q => pathx s1 * (q - s0) / (s1 - s0) + pathx s0)) *)
+  (*                                    (Derive (fun q => pathy s1 * (q - s0) / (s1 - s0) + pathy s0))) s *)
+  (*                         = *)
+  (*                         (magnitude (Derive pathx) (Derive pathy)) s) as mgs. { *)
+  (*     intros * [slb sub]. *)
+  (*     unfold Rmin, Rmax in slb, sub. *)
+  (*     destruct Rle_dec; try lra. *)
+  (*     unfold magnitude, comp, plus_fct. *)
+
+  (*     assert (locally s (fun s => *)
+  (*                          (fun q : R => pathx s1 * (q - s0) / (s1 - s0) + pathx s0) s = *)
+  (*                          pathx s)) as pxl. { *)
+  (*       assert (0 < Rmin (s1 - s) (s - s0)) as zlte. { *)
+  (*         unfold Rmin. *)
+  (*         destruct Rle_dec; lra. } *)
+  (*       exists (mkposreal _ zlte). *)
+  (*       simpl. *)
+  (*       intros * yb. *)
+  (*       assert (s0 < y < s1) as yrng. { *)
+  (*         unfold ball in yb. *)
+  (*         simpl in yb. *)
+  (*         unfold AbsRing_ball, abs, minus, plus, opp, Rmin in yb. *)
+  (*         simpl in yb. *)
+  (*         destruct Rle_dec. *)
+  (*         unfold Rabs in yb; destruct Rcase_abs; lra. *)
+  (*         unfold Rabs in yb; destruct Rcase_abs; lra. } *)
+  (*       specialize (sl y yrng) as [pthxd pthyd]. *)
+  (*       symmetry; assumption. } *)
+        
+  (*     assert (locally s (fun s => *)
+  (*                          (fun q : R => pathy s1 * (q - s0) / (s1 - s0) + pathy s0) s = *)
+  (*                          pathy s)) as pyl. { *)
+  (*       assert (0 < Rmin (s1 - s) (s - s0)) as zlte. { *)
+  (*         unfold Rmin. *)
+  (*         destruct Rle_dec; lra. } *)
+  (*       exists (mkposreal _ zlte). *)
+  (*       simpl. *)
+  (*       intros * yb. *)
+  (*       assert (s0 < y < s1) as yrng. { *)
+  (*         unfold ball in yb. *)
+  (*         simpl in yb. *)
+  (*         unfold AbsRing_ball, abs, minus, plus, opp, Rmin in yb. *)
+  (*         simpl in yb. *)
+  (*         destruct Rle_dec. *)
+  (*         unfold Rabs in yb; destruct Rcase_abs; lra. *)
+  (*         unfold Rabs in yb; destruct Rcase_abs; lra. } *)
+  (*       specialize (sl y yrng) as [pthxd pthyd]. *)
+  (*       symmetry; assumption. } *)
+
+  (*     rewrite (Derive_ext_loc (fun q : R => pathx s1 * (q - s0) / (s1 - s0) + pathx s0) pathx); *)
+  (*       try assumption. *)
+  (*     rewrite (Derive_ext_loc (fun q : R => pathy s1 * (q - s0) / (s1 - s0) + pathy s0) pathy); *)
+  (*       try assumption. *)
+  (*     reflexivity. } *)
+
+  (*   apply (is_RInt_ext *)
+  (*            (magnitude *)
+  (*               (Derive (fun q : R => pathx s1 * (q - s0) / (s1 - s0) + pathx s0)) *)
+  (*               (Derive (fun q : R => pathy s1 * (q - s0) / (s1 - s0) + pathy s0))) *)
+  (*            (magnitude (Derive pathx) (Derive pathy))). *)
+  (*   assumption. *)
+
+
+  (* could have different parameterizations; not all unit velocity *)
+  Axiom path_length_straight_line : forall pathx pathy s0 s1,
       is_RInt (magnitude (Derive pathx) (Derive pathy)) s0 s1
-              (sqrt ((pathx s0 - pathx s1)² + (pathy s0 - pathy s1)²)) <->
-      (forall s, s0 < s < s1 ->
-                pathx s = pathx s1 * (s - s0) / (s1 - s0) + pathx s0 /\
-                pathy s = pathy s1 * (s - s0) / (s1 - s0) + pathy s0).
+              (sqrt ((pathx s0 - pathx s1)² + (pathy s0 - pathy s1)²)) ->
+      (exists v,
+          forall s, s0 < s < s1 ->
+                    0 <= v s /\
+                    (Derive pathx s = (pathx s1 - pathx s0) * v s /\
+                     Derive pathy s = (pathy s1 - pathy s0) * v s)).
 
   Lemma shortest_path_lt_evolute_path : forall (s0 s1:R),
+      0 < s0 < s1 -> 
       sqrt ((occx a s0 - occx a s1)² + (occy a s0 - occy a s1)²) <
       RInt (magnitude (Derive (occx a)) (Derive (occy a))) s0 s1.
   Proof.
+    intros * os0s1.
+    set (pthx := occx a).
+    set (pthy := occy a).
+    set (M := sqrt ((pthx s0 - pthx s1)² + (pthy s0 - pthy s1)²)).
+    specialize (evolute_path_length _ _ os0s1) as igbl.
+    set (d := (oscr a s0 - oscr a s1)) in *.
+    
+    specialize (path_length_lower_bound _ _ _ _ _ igbl) as mfld.
+    change (M <= d) in mfld.
+
+    destruct mfld as [mltd| meqd].
+    apply (is_RInt_unique (magnitude (Derive pthx) (Derive pthy))) in igbl.
+    rewrite igbl.
+    assumption.
+    
+    exfalso.
+    rewrite <- meqd in igbl.
+    unfold M in igbl.
+
+    apply path_length_straight_line in igbl.
+    destruct igbl as [v ppr].
+
+    specialize d_evolute_x as dex.
+    change (forall s : R, 0 < s -> Derive pthx s = Derive (oscr a) s * nx s) in dex.
+    specialize d_evolute_y as dey.
+    change (forall s : R, 0 < s -> Derive pthy s = Derive (oscr a) s * ny s) in dey.
+    specialize egeof_Ny_eq_Tx as nyd.
+    specialize egeof_Nx_eq_nTy as nxd.
+    unfold tx in nyd.
+    unfold ty in nxd.
+    rewrite dfx in nyd.
+    rewrite dfy in nxd.
+    set (e1 := s0 + (s1 - s0) * / 3).
+    assert (s0 < e1 < s1) as e1rng. {
+      unfold e1.
+      lra. }
+    set (e2 := s0 + 2 * (s1 - s0) * / 3).
+    assert (s0 < e2 < s1) as e2rng. {
+      unfold e2.
+      lra. }
+    assert (e1 < e2) as e1lte2. {
+      unfold e1, e2 in *.
+      lra. }
+    assert (0 < e1) as zlte1; try lra.
+    assert (0 < e2) as zlte2; try lra.
+
+    specialize (ppr e1 e1rng) as [v1 [dp1x dp1y]].
+    specialize (dex e1 zlte1) as dt1x.
+    specialize (dey e1 zlte1) as dt1y.
+    rewrite (nxd _ zlte1) in dt1x.
+    rewrite (nyd _ zlte1) in dt1y.
+    assert (Derive (oscr a) e1 = - / (a * e1²)) as dr1. {
+      apply is_derive_unique.
+      unfold oscr.
+      auto_derive.
+      apply Rmult_integral_contrapositive_currified; lra.
+      unfold Rsqr.
+      field.
+      lra. }
+    assert (Derive (oscr a) e1 < 0) as zltdr1. {
+      rewrite dr1.
+      setr (- 0).
+      apply Ropp_lt_contravar.
+      apply Rinv_0_lt_compat.
+      unfold Rsqr.
+      apply Rmult_lt_0_compat; try lra.
+      apply Rmult_lt_0_compat; lra. }
+    destruct v1 as [vp | v0].
+    2 : {
+      rewrite <- v0 in *.
+      autorewrite with null in dp1x, dp1y.
+      rewrite dp1x in dt1x.
+      rewrite dp1y in dt1y.
+      symmetry in dt1x, dt1y.
+      apply Rmult_integral in dt1x.
+      apply Rmult_integral in dt1y.
+      destruct dt1x as [abs |sin0]; try lra.
+      destruct dt1y as [abs |cos0]; try lra.
+      apply Ropp_eq_0_compat in sin0.
+      rewrite Ropp_involutive in sin0.
+      apply (cos_sin_0 (1 / 2 * PI * (e1 / l a)²)).
+      auto. }
+    admit.
   Admitted.
 
   Theorem kneser_nesting : forall s0 s1 x y,
@@ -3454,6 +3614,7 @@ These correspond to Theorems 1 and 2 in the paper.
         
       apply (Rlt_le_trans _ (RInt (magnitude (Derive (occx a)) (Derive (occy a))) s0 s1)).
       ++ apply (shortest_path_lt_evolute_path s0 s1).
+         lra.
       ++ right.
          specialize (evolute_path_length s0 s1) as int.
          apply (is_RInt_unique (magnitude (Derive (occx a)) (Derive (occy a)))) in int.
