@@ -3072,6 +3072,349 @@ These correspond to Theorems 1 and 2 in the paper.
     reflexivity.
   Qed.
 
+  Lemma occx_def : forall (s:R) (zlts : 0 < s),
+      occx a s = fx s + nx s * oscr a s.
+  Proof.
+    intros.
+    unfold occx.
+    change (fx s + - ty s / sqrt ((Derive fy s)² + (Derive fx s)²) *
+                     oscr a s = fx s + nx s * oscr a s).
+    specialize (uv s) as [e luv].
+    specialize (luv s ltac:(apply ball_center)).
+    unfold tx, ty in luv.
+    rewrite Rplus_comm in luv.
+    rewrite luv, sqrt_1, egeof_Nx_eq_nTy; try assumption.
+    field.
+  Qed.
+
+  Lemma occy_def : forall (s:R) (zlts : 0 < s),
+      occy a s = fy s + ny s * oscr a s.
+  Proof.
+    intros.
+    unfold occy.
+    change (fy s + tx s / sqrt ((Derive fy s)² + (Derive fx s)²) *
+                     oscr a s = fy s + ny s * oscr a s).
+    specialize (uv s) as [e luv].
+    specialize (luv s ltac:(apply ball_center)).
+    unfold tx, ty in luv.
+    rewrite Rplus_comm in luv.
+    rewrite luv, sqrt_1, egeof_Ny_eq_Tx; try assumption.
+    field.
+  Qed.
+
+  Lemma d_evolute_x : forall s,
+      0 < s ->
+      Derive (occx a) s = Derive (oscr a) s * nx s.
+  Proof.
+    intros * zlts.
+    unfold magnitude, comp, plus_fct.
+    specialize occx_def as ocxd.
+    assert (locally s (fun s => fx s + nx s * oscr a s = occx a s)) as ocxid. {
+      exists (mkposreal _ zlts).
+      simpl.
+      intros * bssy.
+      assert (0 < y) as zlty. {
+        clear - bssy.
+        unfold ball in bssy.
+        simpl in bssy.
+        unfold AbsRing_ball, abs, minus, plus, opp in bssy.
+        simpl in bssy.
+        unfold Rabs in bssy.
+        destruct Rcase_abs;
+          lra. }
+      symmetry; apply ocxd; assumption. }
+
+    assert (is_derive (occx a) s
+                      (Derive fx s + Derive nx s * oscr a s + nx s * Derive (oscr a) s))
+      as docxs. {
+      apply (is_derive_ext_loc _ _ _ _ ocxid).
+      simpl.
+      auto_derive.
+      + split.
+        specialize (Fx_deriv a zlta s) as fxd.
+        match goal with
+        | fxd : is_derive ?A ?s ?B |- _=> change (is_derive fx s B) in fxd; exists B
+        end.
+        assumption.
+        
+        split.
+        change (ex_derive nx s).
+        unfold nx.
+        assert (s <> 0) as sne0; try lra.
+        specialize (ed2txk _ sne0) as [e ednx].
+        specialize (ednx s ltac:(apply ball_center)).
+        assumption.
+        
+        split; try constructor.
+        change (ex_derive (oscr a) s).
+        unfold oscr.
+        auto_derive.
+        intro aseq0.
+        apply Rmult_integral in aseq0.
+        destruct aseq0 ; lra.
+
+      + change (1 * Derive fx s +
+                (1 * Derive nx s * oscr a s +
+                 nx s * (1 * Derive (oscr a) s)) =
+                Derive fx s + Derive nx s * oscr a s + nx s * Derive (oscr a) s).
+        field. }
+    apply is_derive_unique in docxs.
+    rewrite docxs.
+    assert (s <> 0) as sne0; try lra.
+    repeat rewrite (egeof_dNx_eq_nkTx _ sne0).
+    rewrite kdef_poss; try assumption.
+    setl (Derive fx s + - tx s + nx s * Derive (oscr a) s).
+    unfold oscr.
+    apply Rinv_neq_0_compat.
+    apply Rmult_integral_contrapositive_currified; lra.
+
+    unfold tx.
+    field.
+  Qed.
+
+  Lemma d_evolute_y : forall s,
+      0 < s ->
+      Derive (occy a) s = Derive (oscr a) s * ny s.
+  Proof.
+    intros * zlts.
+    unfold magnitude, comp, plus_fct.
+
+    specialize occy_def as ocyd.
+    assert (locally s (fun s => fy s + ny s * oscr a s = occy a s)) as ocyid. {
+      exists (mkposreal _ zlts).
+      simpl.
+      intros * bssy.
+      assert (0 < y) as zlty. {
+        clear - bssy.
+        unfold ball in bssy.
+        simpl in bssy.
+        unfold AbsRing_ball, abs, minus, plus, opp in bssy.
+        simpl in bssy.
+        unfold Rabs in bssy.
+        destruct Rcase_abs;
+          lra. }
+      symmetry; apply ocyd; assumption. }
+
+    assert (is_derive (occy a) s
+                      (Derive fy s + Derive ny s * oscr a s + ny s * Derive (oscr a) s))
+      as docys. {
+      apply (is_derive_ext_loc _ _ _ _ ocyid).
+      simpl.
+      auto_derive.
+      + split.
+        specialize (Fy_deriv a zlta s) as fyd.
+        match goal with
+        | fyd : is_derive ?A ?s ?B |- _=> change (is_derive fy s B) in fyd; exists B
+        end.
+        assumption.
+        
+        split.
+        change (ex_derive ny s).
+        unfold nx.
+        assert (s <> 0) as sne0; try lra.
+        specialize (ed2tyk _ sne0) as [e edny].
+        specialize (edny s ltac:(apply ball_center)).
+        assumption.
+        
+        split; try constructor.
+        change (ex_derive (oscr a) s).
+        unfold oscr.
+        auto_derive.
+        intro aseq0.
+        apply Rmult_integral in aseq0.
+        destruct aseq0 ; lra.
+
+      + change (1 * Derive fy s +
+                (1 * Derive ny s * oscr a s +
+                 ny s * (1 * Derive (oscr a) s)) =
+                Derive fy s + Derive ny s * oscr a s + ny s * Derive (oscr a) s).
+        field. }
+    apply is_derive_unique in docys.
+    rewrite docys.
+
+    assert (s <> 0) as sne0; try lra.
+    repeat rewrite (egeof_dNy_eq_nkTy _ sne0).
+    rewrite kdef_poss; try assumption.
+    setl (Derive fy s + - ty s + ny s * Derive (oscr a) s).
+    unfold oscr.
+    apply Rinv_neq_0_compat.
+    apply Rmult_integral_contrapositive_currified; lra.
+
+    unfold ty.
+    field.
+  Qed.
+    
+  Lemma d_evolute_magnitude : forall s,
+      0 < s ->
+      (magnitude (Derive (occx a)) (Derive (occy a))) s = (fun s => Rabs (Derive (oscr a) s)) s.
+  Proof.
+    intros * zlts.
+    simpl.
+    unfold magnitude, comp, plus_fct.
+    rewrite (d_evolute_x _ zlts).
+    rewrite (d_evolute_y _ zlts).
+    repeat rewrite Rsqr_mult.
+
+    assert (s <> 0) as sne0; try lra.
+    specialize (unitN _ _ _ (anz _ sne0)) as un.
+    simpl in un.
+    change (locally s (fun s : R => (nx s)² + (ny s)² = 1)) in un.
+    destruct un as [e un].
+    specialize (un s ltac:(apply ball_center)).
+
+    fieldrewrite ((Derive (oscr a) s)² * (nx s)² + (Derive (oscr a) s)² * (ny s)²)
+                 ((Derive (oscr a) s)² * ((nx s)² + (ny s)²)).
+    rewrite un.
+    arn.
+    rewrite sqrt_Rsqr_abs.
+    reflexivity.
+  Qed.
+
+  Lemma evolute_path_length : forall (s0 s1:R),
+      0 < s0 < s1 -> 
+      is_RInt (magnitude (Derive (occx a)) (Derive (occy a))) s0 s1 (oscr a s0 - oscr a s1).
+  Proof.
+    intros * [zlts0 s0lts1].
+    assert (forall x : R, Rmin s0 s1 < x < Rmax s0 s1 ->
+                          (fun s => Rabs (Derive (oscr a) s)) x =
+                          (magnitude (Derive (occx a)) (Derive (occy a))) x) as id0. {
+      intros * [xlb xub].
+      unfold Rmin, Rmax in *.
+      destruct Rle_dec; try lra.
+      symmetry.
+      eapply (d_evolute_magnitude); lra. }
+    apply (is_RInt_ext _ _ _ _ _ id0).
+
+    assert (forall x : R, Rmin s0 s1 < x < Rmax s0 s1 ->
+                          (fun s => Rabs (Derive (oscr a) s)) x =
+                          (fun s => - Derive (oscr a) s) x) as id2. {
+      intros * [xlb xub].
+      unfold Rmin, Rmax in *.
+      destruct Rle_dec; try lra.
+      assert (Derive (oscr a) x < 0) as rneg. {
+        unfold oscr.
+        assert (forall t : R, (Rmult a) t = (fun s => a * s) t) as id3; auto.
+        
+        rewrite Derive_inv.
+        rewrite <- Rsqr_pow2.
+        setl (- (Derive (Rmult a) x * / (a * x)²)); try lra.
+        setr (- 0).
+        apply Ropp_lt_contravar.
+        apply Rmult_lt_0_compat.
+
+        rewrite (Derive_ext _ _ _ id3).
+        rewrite Derive_scal.
+
+        apply Rmult_lt_0_compat; try lra.
+        rewrite Derive_id.
+        lra.
+
+        apply Rinv_0_lt_compat.
+        apply Rsqr_pos_lt.
+        apply Rmult_integral_contrapositive_currified; lra.
+
+        exists a.
+        symmetry in id3.
+        apply (is_derive_ext _ _ _ _ id3).
+        auto_derive.
+        constructor.
+        lra.
+
+        apply Rmult_integral_contrapositive_currified; lra. }
+      rewrite Rabs_left; try assumption.
+      reflexivity. }
+    symmetry in id2.
+    apply (is_RInt_ext _ _ _ _ _ id2).
+
+    assert (oscr a s0 - oscr a s1 = opp (oscr a s1 - oscr a s0)) as id4. {
+      unfold opp.
+      simpl.
+      field. }
+    rewrite id4.
+    change (is_RInt (fun s : R => opp ((Derive (oscr a)) s)) s0 s1
+                    (opp (minus (oscr a s1) (oscr a s0)))).
+    apply (is_RInt_opp (Derive (oscr a))).
+    apply (is_RInt_derive (oscr a)).
+
+    intros * [xlb xub].
+    unfold Rmin, Rmax in xlb, xub.
+    destruct Rle_dec; try lra.
+    apply Derive_correct.
+    unfold oscr.
+
+    auto_derive.
+    apply Rmult_integral_contrapositive_currified; try lra.
+
+    intros * [xlb xub].
+    unfold Rmin, Rmax in xlb, xub.
+    destruct Rle_dec; try lra.
+    unfold oscr.
+
+    assert (locally x (fun s => (fun s2 => - / (a * s2²)) s =
+                                (Derive (fun s2 : R => / (a * s2))) s
+                                )) as id5. {
+      exists (mkposreal x ltac:(lra)).
+      simpl.
+      intros * bxy.
+      unfold ball in bxy.
+      simpl in bxy.
+      unfold AbsRing_ball, abs, minus, opp, plus in bxy.
+      simpl in bxy.
+      assert (0 < y) as zlty. {
+        apply Rabs_def2 in bxy.
+        lra. }
+    
+      assert (forall s, 0 < s ->
+                        is_derive (fun s2 : R => / (a * s2)) s (- / (a * s²))) as id6. {
+        intros.
+        auto_derive.
+        apply Rmult_integral_contrapositive_currified; try lra.
+        unfold Rsqr.
+        field; lra. }
+      specialize (id6 y zlty).
+      apply is_derive_unique in id6.
+      symmetry.
+      assumption. }
+
+    apply (continuous_ext_loc (Derive (fun s2 : R => / (a * s2))) (fun s2 : R => - / (a * s2²))).
+    assumption.
+    change (continuous (fun s2 : R => opp ((fun s3 => / (a * s3²)) s2)) x).
+    apply (continuous_opp (fun s3 => / (a * s3²))).
+    simpl.
+
+    change (continuous (fun s3 : R => / ((fun s4 => scal a (Rsqr s4)) s3)) x).
+    apply continuous_Rinv_comp.
+
+    apply (continuous_scal_r a Rsqr).
+
+    unfold Rsqr.
+    change (continuous (fun r0 : R => mult (id r0) (id r0)) x).
+    apply (continuous_mult id id x);
+      apply continuous_id.
+
+    unfold scal; simpl.
+    unfold mult; simpl.
+    apply Rmult_integral_contrapositive_currified; try lra.
+    apply Rmult_integral_contrapositive_currified; try lra.
+  Qed.
+
+  Axiom straight_line_shortest_path : forall pathx pathy s0 s1 d,
+      is_RInt (magnitude (Derive pathx) (Derive pathy)) s0 s1 d ->
+      sqrt ((pathx s0 - pathx s1)² + (pathy s0 - pathy s1)²) <= d.
+  
+  Axiom straight_line_path_length : forall pathx pathy s0 s1,
+      is_RInt (magnitude (Derive pathx) (Derive pathy)) s0 s1
+              (sqrt ((pathx s0 - pathx s1)² + (pathy s0 - pathy s1)²)) <->
+      (forall s, s0 < s < s1 ->
+                pathx s = pathx s1 * (s - s0) / (s1 - s0) + pathx s0 /\
+                pathy s = pathy s1 * (s - s0) / (s1 - s0) + pathy s0).
+
+  Lemma shortest_path_lt_evolute_path : forall (s0 s1:R),
+      sqrt ((occx a s0 - occx a s1)² + (occy a s0 - occy a s1)²) <
+      RInt (magnitude (Derive (occx a)) (Derive (occy a))) s0 s1.
+  Proof.
+  Admitted.
+
   Theorem kneser_nesting : forall s0 s1 x y,
       0 < s0 < s1 -> 
       (x - occx a s1)² + (y - occy a s1)² <= (oscr a s1)² ->
@@ -3095,31 +3438,31 @@ These correspond to Theorems 1 and 2 in the paper.
       repeat apply (Rmult_lt_0_compat); lra.
       setl s0; try lra.
       setr s1; lra.
-    + clear.
-      unfold x0, x1, y0, y1, r0, r1, occx, occy.
-      Print κ.
+    + unfold x0, x1, y0, y1, r0, r1.
+      assert (0 < s1) as zlts1; try lra.
 
-      change ((fx s0 +
-               - Derive fy s0 *
-                 / sqrt ((Derive fy s0)² + (Derive fx s0)²) *
-                 oscr a s0 -
-               (Fx a s1 +
-                - Derive (Fy a) s1 *
-                  / sqrt ((Derive (Fy a) s1)² + (Derive (Fx a) s1)²) *
-                  oscr a s1))² +
-              (Fy a s0 +
-               Derive (Fx a) s0 *
-               / sqrt ((Derive (Fy a) s0)² + (Derive (Fx a) s0)²) *
-               oscr a s0 -
-               (Fy a s1 +
-                Derive (Fx a) s1 *
-                / sqrt ((Derive (Fy a) s1)² + (Derive (Fx a) s1)²) *
-                oscr a s1))² <
-              (oscr a s0 - oscr a s1)²).
-      admit.
-  Admitted.
+      apply sqrt_lt_0_alt.
+      rewrite sqrt_Rsqr.
+      2 : {
+        apply (Rplus_le_reg_r (oscr a s1)).
+        setr (oscr a s0).
+        arn.
+        unfold oscr.
+        apply Rinv_le_contravar.
+        apply Rmult_lt_0_compat; lra.
+        apply Rmult_le_compat_l; lra. }
+        
+      apply (Rlt_le_trans _ (RInt (magnitude (Derive (occx a)) (Derive (occy a))) s0 s1)).
+      ++ apply (shortest_path_lt_evolute_path s0 s1).
+      ++ right.
+         specialize (evolute_path_length s0 s1) as int.
+         apply (is_RInt_unique (magnitude (Derive (occx a)) (Derive (occy a)))) in int.
+         rewrite int.
+         reflexivity.
+         split; lra.
+  Qed.
 
-  Theorem osc_circ_approx_lt : forall p s (zlts : 0 < s),
+  Lemma osc_circ_approx_lt : forall p s (zlts : 0 < s),
       s < p -> (Fx a p - occx a s)² + (Fy a p - occy a s)² < (oscr a s)².
   Proof.
     intros * zlts sltp.
@@ -3140,7 +3483,7 @@ These correspond to Theorems 1 and 2 in the paper.
     reflexivity.
   Qed.
 
-  Theorem osc_circ_approx_le : forall p s (zlts : 0 < s),
+  Lemma osc_circ_approx_le : forall p s (zlts : 0 < s),
       s <= p -> (Fx a p - occx a s)² + (Fy a p - occy a s)² <= (oscr a s)².
   Proof.
     intros.
