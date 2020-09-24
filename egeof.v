@@ -3485,12 +3485,329 @@ These correspond to Theorems 1 and 2 in the paper.
                     (Derive pathx s = (pathx s1 - pathx s0) * v s /\
                      Derive pathy s = (pathy s1 - pathy s0) * v s)).
 
+  Lemma ordered_trig_args : forall p q,
+      0 <= p -> 0 <= q -> 
+      let A := (fun z => 1 / 2 * PI * (z / l a)²) in
+      (A p < A q <-> p < q).
+  Proof.
+      intros * zltp zltq A.
+      specialize (agt0_lagt0 _ zlta) as lage0.
+      specialize PI_RGT_0 as pigt0.
+      split.
+      + intros apltaq.
+        unfold A in *.
+        rewrite <- (Rabs_right p), <- (Rabs_right q); try lra.
+        apply Rsqr_lt_abs_0.
+        apply (Rmult_lt_reg_r ((/ l a)²)).
+        unfold Rsqr.
+        zltab.
+        setl ( (p / l a)²); try lra.
+        setr ( (q / l a)²); try lra.
+        apply (Rmult_lt_reg_l (1 / 2 * PI)).
+        zltab.
+        assumption.
+      + intros pltq.
+        unfold A.
+        apply (Rmult_lt_reg_l (/(1 / 2 * PI))).
+        zltab.
+        setl (p² * (/ l a)²); try lra.
+        setr (q² * (/ l a)²); try lra.
+        apply Rmult_lt_compat_r.
+        unfold Rsqr.
+        zltab.
+        apply Rsqr_incrst_1; try assumption; try lra.
+  Qed.
+  
+  Lemma given_coseq0pt_choose_cosne0pts : forall s0 s1 e0,
+      0 < s0 -> s0 < e0 < s1 ->
+      cos (1 / 2 * PI * (e0 / l a)²) = 0 ->
+      exists e1 e2,
+        s0 < e1 /\ e1 < e2 /\ e2 < s1 /\
+        cos (1 / 2 * PI * (e1 / l a)²) <> 0 /\
+        cos (1 / 2 * PI * (e2 / l a)²) <> 0.
+  Proof.
+    intros * zlts0 s0e0s1 ce00.
+    specialize PI_RGT_0 as pigt0.
+    specialize (ane0_lane0 _ zlta) as lane0.
+    specialize (agt0_lagt0 _ zlta) as lage0.
+    generalize ce00.
+    apply cos_eq_0_0 in ce00 as [m c10a].
+    intro ce00.
+    assert (e0 = l a * sqrt (2 * IZR m + 1)) as e1d. {
+      apply (Rmult_eq_reg_r (/ l a));
+        [|apply Rinv_neq_0_compat; assumption].
+      setr (sqrt (2 * IZR m + 1)); try lra.
+      apply Rsqr_inj.
+      zltab.
+      apply sqrt_pos.
+      rewrite Rsqr_sqrt.
+      apply (Rmult_eq_reg_r (PI/2)).
+      lrag c10a.
+      lra.
+      apply (Rmult_le_reg_r (PI/2)); try lra.
+      arn.
+      rewrite Rmult_plus_distr_r.
+      setr (IZR m * PI + PI / 2).
+      rewrite <- c10a.
+      zltab. }
+
+    specialize ordered_trig_args as Amtnic.
+    set (A := (fun z => 1 / 2 * PI * (z / l a)²)) in *.
+    change (A e0 = IZR m * PI + PI / 2) in c10a.
+    
+    specialize (Z.Even_or_Odd m) as [[b nev] |[b nod]].
+    + rewrite nev in c10a, e1d.
+      rewrite mult_IZR in c10a, e1d.
+      rewrite <- Rmult_assoc in e1d.
+
+      assert (0 < e0) as zlte;
+        [destruct s0e0s1; lra|].
+      rewrite <- Amtnic in zlte; try lra.
+      unfold A in zlte at 1.
+      repeat rewrite <- RmultRinv in zlte.
+      autorewrite with null in zlte.
+      rewrite c10a in zlte.
+      assert (0 < 4 * b + 1)%Z as zlt4b1. {
+        apply lt_IZR.
+        rewrite plus_IZR, mult_IZR.
+        apply (Rmult_lt_reg_r (PI / 2)); try lra. }
+      assert (0 <= IZR b) as zleb. {
+        apply IZR_le.
+        lia. }
+      
+      set (zpt := (l a * sqrt (2 * 2 * IZR b))).
+      assert (A zpt = 2 * IZR b * PI) as azpt. {
+        unfold A, zpt.
+        fieldrewrite (l a * sqrt (2 * 2 * IZR b) / l a)
+                     (sqrt (2 * 2 * IZR b)); try lra.
+        rewrite Rsqr_sqrt.
+        field.
+        zltab. }
+
+      assert (A zpt < A e0) as azptlte0. {
+        rewrite azpt, c10a.
+        lra. }
+     assert (0 <= zpt) as zltzpt. {
+        unfold zpt.
+        zltab. }
+      assert (zpt < e0) as zptlte0. {
+        rewrite <- Amtnic; try lra. }
+        
+      assert (A e0 + 2 * IZR (-b) * PI = PI / 2) as ae0. {
+        rewrite opp_IZR; try lra. }
+      assert (A zpt + 2 * IZR (-b) * PI = 0) as azptm. {
+        rewrite opp_IZR; try lra. }
+      set (f1 := (e0 + Rmax zpt s0) / 2).
+      assert (s0 < f1) as s0ltf1. {
+        unfold f1, Rmax.
+        destruct Rle_dec; lra. }
+      assert (f1 < e0) as f1lte0. {
+        unfold f1, Rmax.
+        rewrite Amtnic in azptlte0; try lra.
+        destruct Rle_dec; try lra. }
+      assert (zpt < f1) as zptltf1. {
+        unfold f1, Rmax.
+        destruct Rle_dec; try lra. }
+      
+      assert (0 < cos (A f1)) as cf1ne0. {
+        rewrite <- (cos_period1 _ (-b)).
+        rewrite <- Amtnic in zptltf1; try lra.
+        rewrite <- Amtnic in f1lte0; try lra.
+        assert (0 <= A f1 + 2 * IZR (- b) * PI) as zltaf1; try lra.
+        assert (A f1 + 2 * IZR (- b) * PI <= PI) as af1lepi; try lra.
+        assert (0 <= A e0 + 2 * IZR (- b) * PI) as zltae0; try lra.
+        assert (A e0 + 2 * IZR (- b) * PI <= PI) as e0lepi; try lra.
+        apply (Rplus_lt_compat_r (2 * IZR (- b) * PI)) in f1lte0.
+        specialize (cos_decreasing_1 (A f1 + 2 * IZR (- b) * PI)
+                                     (A e0 + 2 * IZR (- b) * PI)
+                                     zltaf1 af1lepi zltae0 e0lepi f1lte0) as cltc.
+        rewrite cos_period1 in cltc.
+        unfold A in cltc at 1.
+        rewrite ce00 in cltc.
+        assumption. }
+
+      set (f2 := (f1 + e0)/2).
+      assert (f1 < f2) as f1ltf2; try (unfold f2; lra).
+      assert (f2 < e0) as f2lte0; try (unfold f2; lra).
+      assert (zpt < f2) as zptltf2; try (unfold f2; lra).
+
+      assert (0 < cos (A f2)) as cf2ne0. {
+        rewrite <- (cos_period1 _ (-b)).
+        rewrite <- Amtnic in zptltf2; try lra.
+        rewrite <- Amtnic in f2lte0; try lra.
+        assert (0 <= A f2 + 2 * IZR (- b) * PI) as zltaf2; try lra.
+        assert (A f2 + 2 * IZR (- b) * PI <= PI) as af2lepi; try lra.
+        assert (0 <= A e0 + 2 * IZR (- b) * PI) as zltae0; try lra.
+        assert (A e0 + 2 * IZR (- b) * PI <= PI) as e0lepi; try lra.
+        apply (Rplus_lt_compat_r (2 * IZR (- b) * PI)) in f2lte0.
+        specialize (cos_decreasing_1 (A f2 + 2 * IZR (- b) * PI)
+                                     (A e0 + 2 * IZR (- b) * PI)
+                                     zltaf2 af2lepi zltae0 e0lepi f2lte0) as cltc.
+        rewrite cos_period1 in cltc.
+        unfold A in cltc at 1.
+        rewrite ce00 in cltc.
+        assumption. }
+
+      exists f1, f2.
+      split; try lra.
+      split; try lra.
+      split; try lra.
+      split; try lra.
+      intros ctr;
+        unfold A in cf1ne0;
+        rewrite ctr in cf1ne0 ; lra.
+      intros ctr;
+        unfold A in cf2ne0;
+        rewrite ctr in cf2ne0 ; lra.
+
+    + rewrite nod in c10a, e1d.
+      rewrite plus_IZR, mult_IZR in c10a, e1d.
+
+      assert (0 < e0) as zlte;
+        [destruct s0e0s1; lra|].
+      rewrite <- Amtnic in zlte; try lra.
+      unfold A in zlte at 1.
+      repeat rewrite <- RmultRinv in zlte.
+      autorewrite with null in zlte.
+      rewrite c10a in zlte.
+      assert (0 < 4 * b + 3)%Z as zlt4b1. {
+        apply lt_IZR.
+        rewrite plus_IZR, mult_IZR.
+        apply (Rmult_lt_reg_r (PI / 2)); try lra. }
+      assert (0 <= IZR b) as zleb. {
+        apply IZR_le.
+        lia. }
+      
+      assert ((2 * IZR b + 1) * PI + PI / 2 = 2 * IZR b * PI + 3 * PI / 2) as id; try field.
+      rewrite id in c10a; clear id.
+      assert (2 * (2 * IZR b + 1) + 1 = 2 * 2 * IZR b + 3) as id; try field.
+      rewrite id in e1d; clear id.
+
+      set (zpt := (l a * sqrt (2 * 2 * IZR (b + 1)))).
+      assert (A zpt = 2 * IZR b * PI + 2 * PI) as azpt. {
+        unfold A, zpt.
+        fieldrewrite (l a * sqrt (2 * 2 * IZR (b + 1)) / l a)
+                     (sqrt (2 * 2 * IZR (b + 1))); try lra.
+        rewrite Rsqr_sqrt.
+        rewrite plus_IZR.
+        field.
+        rewrite plus_IZR.
+        zltab. }
+
+      assert (A e0 < A zpt) as azptlte0. {
+        rewrite azpt, c10a.
+        lra. }
+     assert (0 <= zpt) as zltzpt. {
+        unfold zpt.
+        zltab. }
+      assert (e0 < zpt) as zptlte0. {
+        rewrite <- Amtnic; try lra. }
+        
+      assert (A e0 + 2 * IZR (-b) * PI = 3 * PI / 2) as ae0. {
+        rewrite opp_IZR; try lra. }
+      assert (A zpt + 2 * IZR (-b) * PI = 2 * PI) as azptm. {
+        rewrite opp_IZR; try lra. }
+      Check cos_increasing_1.
+      set (f2 := (e0 + Rmin zpt s1) / 2).
+      assert (f2 < s1) as s0ltf1. {
+        unfold f2, Rmin.
+        destruct Rle_dec; lra. }
+      assert (e0 < f2) as f1lte0. {
+        unfold f2, Rmin.
+        rewrite Amtnic in azptlte0; try lra.
+        destruct Rle_dec; try lra. }
+      assert (f2 < zpt) as zptltf1. {
+        unfold f2, Rmin.
+        destruct Rle_dec; try lra. }
+      
+      assert (0 < cos (A f2)) as cf1ne0. {
+        rewrite <- (cos_period1 _ (-b)).
+        rewrite <- Amtnic in zptltf1; try lra.
+        rewrite <- Amtnic in f1lte0; try lra.
+        assert (PI <= A f2 + 2 * IZR (- b) * PI) as zltaf1; try lra.
+        assert (A f2 + 2 * IZR (- b) * PI <= 2 * PI) as af1lepi; try lra.
+        assert (PI <= A e0 + 2 * IZR (- b) * PI) as zltae0; try lra.
+        assert (A e0 + 2 * IZR (- b) * PI <= 2 * PI) as e0lepi; try lra.
+        apply (Rplus_lt_compat_r (2 * IZR (- b) * PI)) in f1lte0.
+        specialize (cos_increasing_1 (A e0 + 2 * IZR (- b) * PI)
+                                     (A f2 + 2 * IZR (- b) * PI)
+                                     zltae0 e0lepi zltaf1 af1lepi f1lte0) as cltc.
+        rewrite cos_period1 in cltc.
+        unfold A in cltc at 1.
+        rewrite ce00 in cltc.
+        assumption. }
+
+      set (f1 := (f2 + e0)/2).
+      assert (f1 < f2) as f1ltf2; try (unfold f1; lra).
+      assert (e0 < f1) as f2lte0; try (unfold f1; lra).
+      assert (f1 < zpt) as zptltf2; try (unfold f1; lra).
+
+      assert (0 < cos (A f1)) as cf2ne0. {
+        rewrite <- (cos_period1 _ (-b)).
+        rewrite <- Amtnic in zptltf2; try lra.
+        rewrite <- Amtnic in f2lte0; try lra.
+        assert (PI <= A f1 + 2 * IZR (- b) * PI) as zltaf2; try lra.
+        assert (A f1 + 2 * IZR (- b) * PI <= 2 * PI) as af2lepi; try lra.
+        assert (PI <= A e0 + 2 * IZR (- b) * PI) as zltae0; try lra.
+        assert (A e0 + 2 * IZR (- b) * PI <= 2 * PI) as e0lepi; try lra.
+        apply (Rplus_lt_compat_r (2 * IZR (- b) * PI)) in f2lte0.
+        specialize (cos_increasing_1 (A e0 + 2 * IZR (- b) * PI)
+                                     (A f1 + 2 * IZR (- b) * PI)
+                                     zltae0 e0lepi zltaf2 af2lepi f2lte0) as cltc.
+        rewrite cos_period1 in cltc.
+        unfold A in cltc at 1.
+        rewrite ce00 in cltc.
+        assumption. }
+
+      exists f1, f2.
+      split; try lra.
+      split; try lra.
+      split; try lra.
+      split; try lra.
+      intros ctr;
+        unfold A in cf2ne0;
+        rewrite ctr in cf2ne0 ; lra.
+      intros ctr;
+        unfold A in cf1ne0;
+        rewrite ctr in cf1ne0 ; lra.
+  Qed.
+
+  Lemma choose_cosne0pts : forall s0 s1,
+      0 < s0 < s1 ->
+      exists e1 e2,
+        s0 < e1 /\ e1 < e2 /\ e2 < s1 /\
+        cos (1 / 2 * PI * (e1 / l a)²) <> 0 /\
+        cos (1 / 2 * PI * (e2 / l a)²) <> 0.
+  Proof.
+    intros * s0lts1.
+    specialize (ane0_lane0 _ zlta) as lane0.
+    specialize (agt0_lagt0 _ zlta) as lage0.
+    set (e1 := (s0 + s1) * / 2).
+    assert (s0 < e1 < s1) as e1rng. {
+      unfold e1.
+      lra. }
+    specialize PI_RGT_0 as pigt0.
+    destruct (Req_dec (cos (1 / 2 * PI * (e1 / l a)²)) 0) as [c10|c1n].
+    + apply (given_coseq0pt_choose_cosne0pts s0 s1 e1 ltac:(lra) ltac:(lra) c10).
+    + set (e2 := (e1 + s1) * / 2).
+      destruct (Req_dec (cos (1 / 2 * PI * (e2 / l a)²)) 0) as [c20|c2n].
+      ++ apply (given_coseq0pt_choose_cosne0pts s0 s1 e2
+                                                ltac:(unfold e2; lra) ltac:(unfold e2; lra) c20).
+      ++ exists e1, e2.
+         split; try lra.
+         split; try lra.
+         unfold e2; lra.
+         split; try lra.
+         unfold e2; lra.
+  Qed.
+
   Lemma shortest_path_lt_evolute_path : forall (s0 s1:R),
       0 < s0 < s1 -> 
       sqrt ((occx a s0 - occx a s1)² + (occy a s0 - occy a s1)²) <
       RInt (magnitude (Derive (occx a)) (Derive (occy a))) s0 s1.
   Proof.
     intros * os0s1.
+    specialize PI_RGT_0 as pigt0.
     set (pthx := occx a).
     set (pthy := occy a).
     set (M := sqrt ((pthx s0 - pthx s1)² + (pthy s0 - pthy s1)²)).
@@ -3522,25 +3839,17 @@ These correspond to Theorems 1 and 2 in the paper.
     unfold ty in nxd.
     rewrite dfx in nyd.
     rewrite dfy in nxd.
-    set (e1 := s0 + (s1 - s0) * / 3).
-    assert (s0 < e1 < s1) as e1rng. {
-      unfold e1.
-      lra. }
-    set (e2 := s0 + 2 * (s1 - s0) * / 3).
-    assert (s0 < e2 < s1) as e2rng. {
-      unfold e2.
-      lra. }
-    assert (e1 < e2) as e1lte2. {
-      unfold e1, e2 in *.
-      lra. }
-    assert (0 < e1) as zlte1; try lra.
-    assert (0 < e2) as zlte2; try lra.
 
-    specialize (ppr e1 e1rng) as [v1 [dp1x dp1y]].
-    specialize (dex e1 zlte1) as dt1x.
-    specialize (dey e1 zlte1) as dt1y.
-    rewrite (nxd _ zlte1) in dt1x.
-    rewrite (nyd _ zlte1) in dt1y.
+    specialize (choose_cosne0pts _ _ os0s1) as
+        [e1 [e2 [s0lte1 [e1lte2 [e2lts1 [c1ne0 c2ne0]]]]]].
+
+    (* setup e1 *)
+    generalize ppr; intro pprs.
+    specialize (pprs e1 ltac:(lra)) as [v1 [dp1x dp1y]].
+    specialize (dex e1 ltac:(lra)) as dt1x.
+    specialize (dey e1 ltac:(lra)) as dt1y.
+    rewrite (nxd e1 ltac:(lra)) in dt1x.
+    rewrite (nyd e1 ltac:(lra)) in dt1y.
     assert (Derive (oscr a) e1 = - / (a * e1²)) as dr1. {
       apply is_derive_unique.
       unfold oscr.
@@ -3557,7 +3866,7 @@ These correspond to Theorems 1 and 2 in the paper.
       unfold Rsqr.
       apply Rmult_lt_0_compat; try lra.
       apply Rmult_lt_0_compat; lra. }
-    destruct v1 as [vp | v0].
+    destruct v1 as [vp1 | v0].
     2 : {
       rewrite <- v0 in *.
       autorewrite with null in dp1x, dp1y.
@@ -3566,13 +3875,135 @@ These correspond to Theorems 1 and 2 in the paper.
       symmetry in dt1x, dt1y.
       apply Rmult_integral in dt1x.
       apply Rmult_integral in dt1y.
-      destruct dt1x as [abs |sin0]; try lra.
-      destruct dt1y as [abs |cos0]; try lra.
-      apply Ropp_eq_0_compat in sin0.
-      rewrite Ropp_involutive in sin0.
-      apply (cos_sin_0 (1 / 2 * PI * (e1 / l a)²)).
-      auto. }
-    admit.
+      lra. }
+
+    destruct (Req_dec (pthy s1 - pthy s0) 0) as [p0 |pn].
+    { rewrite p0 in dp1y.
+      rewrite dp1y in dt1y.
+      autorewrite with null in dt1y.
+      symmetry in dt1y.
+      apply Rmult_integral in dt1y; lra. }
+
+    assert (tan (1 / 2 * PI * (e1 / l a)²) =
+            - (pthx s1 - pthx s0) / (pthy s1 - pthy s0)) as id1. {
+      apply (Rmult_eq_reg_r (- Derive (oscr a) e1 * v e1 *
+                             (pthy s1 - pthy s0)*(cos (1 / 2 * PI * (e1 / l a)²)))).
+      unfold tan.
+      repeat rewrite <- RmultRinv.
+      setl ((Derive (oscr a) e1 * - sin (1 * / 2 * PI * (e1 * / l a)²)) *
+            ((pthy s1 - pthy s0) * v e1)).
+      assumption.
+      setr ((Derive (oscr a) e1 * cos (1 * / 2 * PI * (e1 * / l a)²)) *
+            ((pthx s1 - pthx s0) * v e1)).
+      assumption.
+      repeat rewrite RmultRinv.
+      rewrite <- dp1x, <- dp1y, <- dt1x, <- dt1y.
+      field.
+      apply Rmult_integral_contrapositive_currified; try assumption.
+      apply Rmult_integral_contrapositive_currified; try assumption.
+      apply Rmult_integral_contrapositive_currified; try assumption.
+      lra.
+      lra. }
+
+    (* setup e2 *)
+    generalize ppr; intro pprs.
+    specialize (pprs e2 ltac:(lra)) as [v2 [dp2x dp2y]].
+    specialize (dex e2 ltac:(lra)) as dt2x.
+    specialize (dey e2 ltac:(lra)) as dt2y.
+    rewrite (nxd e2 ltac:(lra)) in dt2x.
+    rewrite (nyd e2 ltac:(lra)) in dt2y.
+    assert (Derive (oscr a) e2 = - / (a * e2²)) as dr2. {
+      apply is_derive_unique.
+      unfold oscr.
+      auto_derive.
+      apply Rmult_integral_contrapositive_currified; lra.
+      unfold Rsqr.
+      field.
+      lra. }
+    assert (Derive (oscr a) e2 < 0) as zltdr2. {
+      rewrite dr2.
+      setr (- 0).
+      apply Ropp_lt_contravar.
+      apply Rinv_0_lt_compat.
+      unfold Rsqr.
+      apply Rmult_lt_0_compat; try lra.
+      apply Rmult_lt_0_compat; lra. }
+    destruct v2 as [vp2 | v0].
+    2 : {
+      rewrite <- v0 in *.
+      autorewrite with null in dp2x, dp2y.
+      rewrite dp2x in dt2x.
+      rewrite dp2y in dt2y.
+      symmetry in dt2x, dt2y.
+      apply Rmult_integral in dt2x.
+      apply Rmult_integral in dt2y.
+      lra. }
+
+    assert (tan (1 / 2 * PI * (e2 / l a)²) =
+            - (pthx s1 - pthx s0) / (pthy s1 - pthy s0)) as id2. {
+      apply (Rmult_eq_reg_r (- Derive (oscr a) e2 * v e2 *
+                             (pthy s1 - pthy s0)*(cos (1 / 2 * PI * (e2 / l a)²)))).
+      unfold tan.
+      repeat rewrite <- RmultRinv.
+      setl ((Derive (oscr a) e2 * - sin (1 * / 2 * PI * (e2 * / l a)²)) *
+            ((pthy s1 - pthy s0) * v e2)).
+      assumption.
+      setr ((Derive (oscr a) e2 * cos (1 * / 2 * PI * (e2 * / l a)²)) *
+            ((pthx s1 - pthx s0) * v e2)).
+      assumption.
+      repeat rewrite RmultRinv.
+      rewrite <- dp2x, <- dp2y, <- dt2x, <- dt2y.
+      field.
+      apply Rmult_integral_contrapositive_currified; try assumption.
+      apply Rmult_integral_contrapositive_currified; try assumption.
+      apply Rmult_integral_contrapositive_currified; try assumption.
+      lra.
+      lra. }
+
+    rewrite <- ordered_trig_args in e1lte2; try lra.
+    set (a1 := 1 / 2 * PI * (e1 / l a)²) in *.
+    set (a2 := 1 / 2 * PI * (e2 / l a)²) in *.
+
+    specialize (inrange_mT2T2 a1 PI pigt0) as [k1 [ir1l [ir1u |ir1eq]]].
+    specialize (inrange_mT2T2 a2 PI pigt0) as [k2 [ir2l [ir2u |ir2eq]]].
+    rewrite <- id1 in id2.
+    rewrite <- (tan_period a1 k1) in id2; try lra.
+    rewrite <- (tan_period a2 k2) in id2; try lra.
+    apply tan_is_inj in id2; try lra.
+    assert (a2 - a1 = IZR (k1 - k2) * PI) as a2ma1. {
+      rewrite minus_IZR.
+      lra. }
+
+    assert (a2 - a1 < PI) as a2ma1ub. {
+      admit. }
+    assert (0 < a2 - a1) as a2ma2lb; try lra.
+
+    rewrite a2ma1 in *.
+    assert (0 < IZR (k1 - k2) < 1) as [ctl ctu]. {
+      split.
+      apply (Rmult_lt_reg_r PI); try lra.
+      apply (Rmult_lt_reg_r PI); try lra. }
+    apply lt_IZR in ctl.
+    apply lt_IZR in ctu.
+    lia.
+
+    apply c2ne0.
+    assert (a2 = PI / 2 + IZR (-k2) * PI) as a2def. {
+      rewrite opp_IZR.
+      lra. }
+    rewrite a2def.
+    apply cos_eq_0_1.
+    exists (-k2)%Z.
+    field.
+
+    apply c1ne0.
+    assert (a1 = PI / 2 + IZR (-k1) * PI) as a1def. {
+      rewrite opp_IZR.
+      lra. }
+    rewrite a1def.
+    apply cos_eq_0_1.
+    exists (-k1)%Z.
+    field.
   Admitted.
 
   Theorem kneser_nesting : forall s0 s1 x y,
