@@ -3402,79 +3402,6 @@ These correspond to Theorems 1 and 2 in the paper.
       is_RInt (magnitude (Derive pathx) (Derive pathy)) s0 s1 d ->
       sqrt ((pathx s0 - pathx s1)² + (pathy s0 - pathy s1)²) <= d.
   
-  (* Lemma straight_line_path_length : forall pathx pathy s0 s1, *)
-  (*     0 < s0 < s1 ->  *)
-  (*     (forall s, s0 < s < s1 -> *)
-  (*                pathx s = pathx s1 * (s - s0) / (s1 - s0) + pathx s0 /\ *)
-  (*                pathy s = pathy s1 * (s - s0) / (s1 - s0) + pathy s0) -> *)
-  (*     is_RInt (magnitude (Derive pathx) (Derive pathy)) s0 s1 *)
-  (*             (sqrt ((pathx s0 - pathx s1)² + (pathy s0 - pathy s1)²)). *)
-  (* Proof. *)
-  (*   intros * srd sl. *)
-  (*   assert (forall s : R, Rmin s0 s1 < s < Rmax s0 s1 -> *)
-  (*                         (magnitude (Derive (fun q => pathx s1 * (q - s0) / (s1 - s0) + pathx s0)) *)
-  (*                                    (Derive (fun q => pathy s1 * (q - s0) / (s1 - s0) + pathy s0))) s *)
-  (*                         = *)
-  (*                         (magnitude (Derive pathx) (Derive pathy)) s) as mgs. { *)
-  (*     intros * [slb sub]. *)
-  (*     unfold Rmin, Rmax in slb, sub. *)
-  (*     destruct Rle_dec; try lra. *)
-  (*     unfold magnitude, comp, plus_fct. *)
-
-  (*     assert (locally s (fun s => *)
-  (*                          (fun q : R => pathx s1 * (q - s0) / (s1 - s0) + pathx s0) s = *)
-  (*                          pathx s)) as pxl. { *)
-  (*       assert (0 < Rmin (s1 - s) (s - s0)) as zlte. { *)
-  (*         unfold Rmin. *)
-  (*         destruct Rle_dec; lra. } *)
-  (*       exists (mkposreal _ zlte). *)
-  (*       simpl. *)
-  (*       intros * yb. *)
-  (*       assert (s0 < y < s1) as yrng. { *)
-  (*         unfold ball in yb. *)
-  (*         simpl in yb. *)
-  (*         unfold AbsRing_ball, abs, minus, plus, opp, Rmin in yb. *)
-  (*         simpl in yb. *)
-  (*         destruct Rle_dec. *)
-  (*         unfold Rabs in yb; destruct Rcase_abs; lra. *)
-  (*         unfold Rabs in yb; destruct Rcase_abs; lra. } *)
-  (*       specialize (sl y yrng) as [pthxd pthyd]. *)
-  (*       symmetry; assumption. } *)
-        
-  (*     assert (locally s (fun s => *)
-  (*                          (fun q : R => pathy s1 * (q - s0) / (s1 - s0) + pathy s0) s = *)
-  (*                          pathy s)) as pyl. { *)
-  (*       assert (0 < Rmin (s1 - s) (s - s0)) as zlte. { *)
-  (*         unfold Rmin. *)
-  (*         destruct Rle_dec; lra. } *)
-  (*       exists (mkposreal _ zlte). *)
-  (*       simpl. *)
-  (*       intros * yb. *)
-  (*       assert (s0 < y < s1) as yrng. { *)
-  (*         unfold ball in yb. *)
-  (*         simpl in yb. *)
-  (*         unfold AbsRing_ball, abs, minus, plus, opp, Rmin in yb. *)
-  (*         simpl in yb. *)
-  (*         destruct Rle_dec. *)
-  (*         unfold Rabs in yb; destruct Rcase_abs; lra. *)
-  (*         unfold Rabs in yb; destruct Rcase_abs; lra. } *)
-  (*       specialize (sl y yrng) as [pthxd pthyd]. *)
-  (*       symmetry; assumption. } *)
-
-  (*     rewrite (Derive_ext_loc (fun q : R => pathx s1 * (q - s0) / (s1 - s0) + pathx s0) pathx); *)
-  (*       try assumption. *)
-  (*     rewrite (Derive_ext_loc (fun q : R => pathy s1 * (q - s0) / (s1 - s0) + pathy s0) pathy); *)
-  (*       try assumption. *)
-  (*     reflexivity. } *)
-
-  (*   apply (is_RInt_ext *)
-  (*            (magnitude *)
-  (*               (Derive (fun q : R => pathx s1 * (q - s0) / (s1 - s0) + pathx s0)) *)
-  (*               (Derive (fun q : R => pathy s1 * (q - s0) / (s1 - s0) + pathy s0))) *)
-  (*            (magnitude (Derive pathx) (Derive pathy))). *)
-  (*   assumption. *)
-
-
   (* could have different parameterizations; not all unit velocity *)
   Axiom path_length_straight_line : forall pathx pathy s0 s1,
       is_RInt (magnitude (Derive pathx) (Derive pathy)) s0 s1
@@ -3924,8 +3851,8 @@ f1 := (l a) * sqrt ((f2 / l a)² - 1))
       exists e1 e2,
         s0 < e1 /\ e1 < e2 /\ e2 < s1 /\
         cos (1 / 2 * PI * (e1 / l a)²) <> 0 /\
-        cos (1 / 2 * PI * (e2 / l a)²) <> 0 (*/\
-        1 / 2 * PI * (e2 / l a)² - 1 / 2 * PI * (e1 / l a)² < PI*).
+        cos (1 / 2 * PI * (e2 / l a)²) <> 0 /\
+        1 / 2 * PI * (e2 / l a)² - 1 / 2 * PI * (e1 / l a)² < PI.
   Proof.
     intros * s0lts1.
     specialize (ane0_lane0 _ zlta) as lane0.
@@ -3937,16 +3864,54 @@ f1 := (l a) * sqrt ((f2 / l a)² - 1))
     specialize PI_RGT_0 as pigt0.
     destruct (Req_dec (cos (1 / 2 * PI * (e1 / l a)²)) 0) as [c10|c1n].
     + apply (given_coseq0pt_choose_cosne0pts s0 s1 e1 ltac:(lra) ltac:(lra) c10).
-    + set (e2 := (e1 + s1) * / 2).
+    + set (e2 := Rmin ((e1 + s1) * / 2) ((l a) * sqrt (1 + (e1 / l a)²))).
+
+      assert (e1 < l a * sqrt (1 + (e1 / l a)²)) as e1lt. {
+        apply (Rmult_lt_reg_r (/ l a)).
+        zltab.
+        rewrite RmultRinv.
+        setr (sqrt (1 + (e1 / l a)²)); try lra.
+        rewrite <- (Rabs_right (e1 / l a)) at 1;
+          [ | rewrite <- RmultRinv; apply Rle_ge; zltab].
+        rewrite <- (Rabs_right (sqrt (1 + ((e1 / l a))²)));
+          [ | apply Rle_ge; zltab].
+        apply Rsqr_lt_abs_0.
+        rewrite Rsqr_sqrt; try lra.
+        apply Rplus_le_le_0_compat; try lra.
+        apply Rle_0_sqr. }
+      
       destruct (Req_dec (cos (1 / 2 * PI * (e2 / l a)²)) 0) as [c20|c2n].
-      ++ apply (given_coseq0pt_choose_cosne0pts s0 s1 e2
-                                                ltac:(unfold e2; lra) ltac:(unfold e2; lra) c20).
+      ++ assert (s0 < e2 < s1) as s0e2s1. {
+           unfold e2, Rmin.
+           destruct Rle_dec; try lra. }
+         apply (given_coseq0pt_choose_cosne0pts s0 s1 e2 ltac:(lra) s0e2s1 c20).
       ++ exists e1, e2.
          split; try lra.
          split; try lra.
-         unfold e2; lra.
+         unfold e2, Rmin.
+         destruct Rle_dec; try lra.
          split; try lra.
-         unfold e2; lra.
+         unfold e2.
+         unfold e2, Rmin.
+         destruct Rle_dec; try lra.
+         split; try assumption.
+         split; try assumption.
+
+         apply (Rle_lt_trans _ (PI/2)); try lra.
+         apply (Rmult_le_reg_r (2/PI)); try zltab.
+         apply (Rplus_le_reg_r ((e1 / l a)²)).
+         setr (1 + (e1 / l a)²); try lra.
+         setl ((e2 / l a)²); try lra.
+         apply sqrt_le_0;
+           try (zltab || left; lra).
+         rewrite sqrt_Rsqr; try zltab.
+         apply (Rmult_le_reg_l (l a)); try lra.
+         setl (e2); try assumption.
+         unfold e2, Rmin.
+         destruct Rle_dec; try lra.
+
+         unfold e2, Rmin.
+         destruct Rle_dec; try lra.
   Qed.
 
   Lemma shortest_path_lt_evolute_path : forall (s0 s1:R),
@@ -3989,7 +3954,7 @@ f1 := (l a) * sqrt ((f2 / l a)² - 1))
     rewrite dfy in nxd.
 
     specialize (choose_cosne0pts _ _ os0s1) as
-        [e1 [e2 [s0lte1 [e1lte2 [e2lts1 [c1ne0 c2ne0]]]]]].
+        [e1 [e2 [s0lte1 [e1lte2 [e2lts1 [c1ne0 [c2ne0 c2c1rng]]]]]]].
 
     (* setup e1 *)
     generalize ppr; intro pprs.
@@ -4122,8 +4087,7 @@ f1 := (l a) * sqrt ((f2 / l a)² - 1))
       rewrite minus_IZR.
       lra. }
 
-    assert (a2 - a1 < PI) as a2ma1ub. {
-      admit. }
+    assert (a2 - a1 < PI) as a2ma1ub; try assumption.
     assert (0 < a2 - a1) as a2ma2lb; try lra.
 
     rewrite a2ma1 in *.
@@ -4152,7 +4116,7 @@ f1 := (l a) * sqrt ((f2 / l a)² - 1))
     apply cos_eq_0_1.
     exists (-k1)%Z.
     field.
-  Admitted.
+  Qed.
 
   Theorem kneser_nesting : forall s0 s1 x y,
       0 < s0 < s1 -> 
