@@ -1414,10 +1414,16 @@ These correspond to Theorems 1 and 2 in the paper.
       results in: a continuous overall path with continuous first and
       second derivatives.
 
-      These lemmas collectively correspond to Theorem 3 in the
-      paper. The axiom below is the only one we added; it expresses
-      that the osculating circle at every point contains the rest of
-      the spiral, a result due to Euler in 1786. *)
+      We prove that the Euler spiral is indeed a spiral, using a
+      two-dimensional version of the Frenet-Seret relations, and a
+      variant of Kneser's Nesting theorem; and that an osculating
+      circle of matching curvature constructed at any point in the
+      spiral contains the rest of the curve, formalizing the result
+      first discovered by Euler in 1786.
+      
+      The axioms below are the only ones we added; they that the
+      shortest path between two points in a cartesan coordinate system
+      is a straight line. *)
 
   Definition fx := Fx a.
   Definition fy := Fy a.
