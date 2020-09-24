@@ -3524,7 +3524,8 @@ These correspond to Theorems 1 and 2 in the paper.
       exists e1 e2,
         s0 < e1 /\ e1 < e2 /\ e2 < s1 /\
         cos (1 / 2 * PI * (e1 / l a)²) <> 0 /\
-        cos (1 / 2 * PI * (e2 / l a)²) <> 0.
+        cos (1 / 2 * PI * (e2 / l a)²) <> 0 /\
+        1 / 2 * PI * (e2 / l a)² - 1 / 2 * PI * (e1 / l a)² < PI.
   Proof.
     intros * zlts0 s0e0s1 ce00.
     specialize PI_RGT_0 as pigt0.
@@ -3626,10 +3627,61 @@ These correspond to Theorems 1 and 2 in the paper.
         rewrite ce00 in cltc.
         assumption. }
 
-      set (f2 := (f1 + e0)/2).
-      assert (f1 < f2) as f1ltf2; try (unfold f2; lra).
-      assert (f2 < e0) as f2lte0; try (unfold f2; lra).
-      assert (zpt < f2) as zptltf2; try (unfold f2; lra).
+(*
+Given f1, choose f2 such that:
+1 / 2 * PI * (f2 / l a)² - 1 / 2 * PI * (f1 / l a)² < PI
+1 / 2 * PI * (f2 / l a)² - 1 / 2 * PI * (f1 / l a)² <= PI/2
+(f2 / l a)² - (f1 / l a)² <= 1
+f2 <= (l a) * sqrt (1 + (f1 / l a)²)
+set
+f2 := (l a) * sqrt (1 + (f1 / l a)²))
+*)
+      set (f2 := Rmin ((f1 + e0)/2) ((l a) * sqrt (1 + (f1 / l a)²))).
+      assert (f1 < f2) as f1ltf2. {
+        unfold f2, Rmin.
+        destruct Rle_dec; try lra.
+        apply (Rmult_lt_reg_r (/ l a)).
+        zltab.
+        setr (sqrt (1 + (f1 / l a)²)); try assumption.
+        apply Rsqr_incrst_0; [ | zltab | apply sqrt_pos].
+        rewrite Rsqr_sqrt; [ |zltab; lra ].
+        rewrite RmultRinv.
+        lra. }
+        
+      assert (A f2 - A f1 < PI) as Af1ltf2pi. {
+        unfold A.
+        apply (Rle_lt_trans _ (PI/2)); try lra.
+        apply (Rmult_le_reg_r (2/PI)); try zltab.
+        apply (Rplus_le_reg_r ((f1 / l a)²)).
+        setr (1 + (f1 / l a)²); try lra.
+        setl ((f2 / l a)²); try lra.
+        apply sqrt_le_0;
+          try (zltab || left; lra).
+        rewrite sqrt_Rsqr; try zltab.
+        apply (Rmult_le_reg_l (l a)); try lra.
+        setl (f2); try assumption.
+        unfold f2, Rmin.
+        destruct Rle_dec; try lra. }
+
+      assert (f2 < e0) as f2lte0. {
+        unfold f2, Rmin.
+        destruct Rle_dec; try lra. }
+
+      assert (zpt < f2) as zptltf2. {
+        unfold f2, Rmin.
+        destruct Rle_dec; try lra.
+        apply (Rmult_lt_reg_r (/ l a)).
+        zltab.
+        setr (sqrt (1 + (f1 / l a)²)); try assumption.
+        apply Rsqr_incrst_0; [ | zltab | apply sqrt_pos].
+        rewrite Rsqr_sqrt; [ |zltab; lra ].
+        rewrite RmultRinv.
+        setl (0 + (zpt / l a)²); try assumption.
+        apply Rplus_lt_compat; try lra.
+        apply Rsqr_incrst_1; try zltab.
+        repeat rewrite <- RmultRinv.
+        apply (Rmult_lt_reg_r (l a)); try lra.
+        lrag zptltf1. }
 
       assert (0 < cos (A f2)) as cf2ne0. {
         rewrite <- (cos_period1 _ (-b)).
@@ -3656,10 +3708,12 @@ These correspond to Theorems 1 and 2 in the paper.
       intros ctr;
         unfold A in cf1ne0;
         rewrite ctr in cf1ne0 ; lra.
+      split.
       intros ctr;
         unfold A in cf2ne0;
         rewrite ctr in cf2ne0 ; lra.
-
+      assumption.
+      
     + rewrite nod in c10a, e1d.
       rewrite plus_IZR, mult_IZR in c10a, e1d.
 
@@ -3707,7 +3761,7 @@ These correspond to Theorems 1 and 2 in the paper.
         rewrite opp_IZR; try lra. }
       assert (A zpt + 2 * IZR (-b) * PI = 2 * PI) as azptm. {
         rewrite opp_IZR; try lra. }
-      Check cos_increasing_1.
+
       set (f2 := (e0 + Rmin zpt s1) / 2).
       assert (f2 < s1) as s0ltf1. {
         unfold f2, Rmin.
@@ -3737,10 +3791,101 @@ These correspond to Theorems 1 and 2 in the paper.
         rewrite ce00 in cltc.
         assumption. }
 
-      set (f1 := (f2 + e0)/2).
-      assert (f1 < f2) as f1ltf2; try (unfold f1; lra).
-      assert (e0 < f1) as f2lte0; try (unfold f1; lra).
-      assert (f1 < zpt) as zptltf2; try (unfold f1; lra).
+(*
+Given f2, choose f1 such that:
+1 / 2 * PI * (f2 / l a)² - 1 / 2 * PI * (f1 / l a)² < PI
+1 / 2 * PI * (f2 / l a)² - 1 / 2 * PI * (f1 / l a)² <= PI/2
+(f2 / l a)² - (f1 / l a)² <= 1
+f1 >= (l a) * sqrt ((f2 / l a)² - 1)
+set
+f1 := (l a) * sqrt ((f2 / l a)² - 1))
+ *)
+      (* make sure this doesn't blow up *)
+      set (f1 := match (Rlt_dec (l a) f2) with
+                 | left _ => Rmax ((f2 + e0)/2) ((l a) * sqrt ((f2 / l a)² - 1))
+                 | right _ => ((f2 + e0)/2)
+                 end).
+
+      assert (f1 < f2) as f1ltf2. {
+        unfold f1.
+        destruct Rlt_dec.
+        - unfold Rmax.
+          destruct Rle_dec; try lra.
+          apply (Rmult_lt_reg_r (/ l a)).
+          zltab.
+          setl (sqrt ((f2 / l a)² - 1)); try assumption.
+          apply Rsqr_incrst_0; [ | apply sqrt_pos | zltab ].
+          rewrite Rsqr_sqrt.
+          lra.
+          apply (Rplus_le_reg_r 1).
+          setl (1²).
+          setr (f2 / l a)²; try lra.
+          apply Rsqr_incr_1.
+
+          rewrite <- RmultRinv.
+          apply (Rmult_le_reg_r (l a)); try lra.
+          setl (l a).
+          setr (f2); try lra.
+          lra.
+
+          apply (Rle_trans _ 1); try lra.
+          rewrite <- RmultRinv.
+          apply (Rmult_le_reg_r (l a)); try lra.
+          setl (l a).
+          setr (f2); try lra.
+        - lra. }
+
+      assert (e0 < f1) as f2lte0.  {
+        unfold f1.
+        destruct Rlt_dec.
+        - unfold Rmax.
+          destruct Rle_dec; try lra.
+        - lra. }
+
+      assert (A f2 - A f1 < PI) as Af1ltf2pi. {
+        unfold A.
+
+        apply (Rle_lt_trans _ (PI/2)); try lra.
+        apply (Rmult_le_reg_r (2/PI)); try zltab.
+        apply (Rplus_le_reg_r ((f1 / l a)² - 1)).
+        setr ((f1 / l a)²); try lra.
+        setl ((f2 / l a)² - 1); try lra.
+          
+        destruct Rlt_dec.
+        - apply sqrt_le_0;
+            try (zltab || left; lra).
+          apply (Rplus_le_reg_r 1).
+          apply (Rmult_le_reg_r (l a)²); try (unfold Rsqr; zltab).
+          setl (l a)².
+          setr (f2²); try lra.
+          apply Rsqr_incr_1; try lra.
+          rewrite sqrt_Rsqr; try (zltab || lra).
+          apply (Rmult_le_reg_l (l a)); try lra.
+          setr (f1); try assumption.
+          unfold f1, Rmax.
+          destruct Rle_dec; try (right; reflexivity).
+          lra.
+        - apply Rnot_lt_le in n.
+          repeat rewrite <- RmultRinv.
+          repeat rewrite Rsqr_mult.
+          apply (Rmult_le_reg_r (l a)²).
+          unfold Rsqr.
+          zltab.
+          setl (f2² - (l a)²); try lra.
+          setr (f1²); try lra.
+          apply (Rle_trans _ 0).
+          apply (Rplus_le_reg_r (l a)²).
+          setl (f2²).
+          arn.
+          apply Rsqr_incr_1; try lra.
+          apply Rle_0_sqr. }
+      
+      assert (f1 < zpt) as zptltf2. {
+        unfold f1 in *.
+        destruct Rlt_dec.
+        - unfold Rmax in *.
+          destruct Rle_dec; try lra.
+        - lra. }
 
       assert (0 < cos (A f1)) as cf2ne0. {
         rewrite <- (cos_period1 _ (-b)).
@@ -3767,9 +3912,11 @@ These correspond to Theorems 1 and 2 in the paper.
       intros ctr;
         unfold A in cf2ne0;
         rewrite ctr in cf2ne0 ; lra.
+      split.
       intros ctr;
         unfold A in cf1ne0;
         rewrite ctr in cf1ne0 ; lra.
+      assumption.
   Qed.
 
   Lemma choose_cosne0pts : forall s0 s1,
@@ -3777,7 +3924,8 @@ These correspond to Theorems 1 and 2 in the paper.
       exists e1 e2,
         s0 < e1 /\ e1 < e2 /\ e2 < s1 /\
         cos (1 / 2 * PI * (e1 / l a)²) <> 0 /\
-        cos (1 / 2 * PI * (e2 / l a)²) <> 0.
+        cos (1 / 2 * PI * (e2 / l a)²) <> 0 (*/\
+        1 / 2 * PI * (e2 / l a)² - 1 / 2 * PI * (e1 / l a)² < PI*).
   Proof.
     intros * s0lts1.
     specialize (ane0_lane0 _ zlta) as lane0.
