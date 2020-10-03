@@ -5,7 +5,6 @@ Require Import Reals.
 Require Import Ranalysis5.
 Require Import Coquelicot.Coquelicot.
 Require Import FunctionalExtensionality.
-Require Import Omega.
 Require Import Lia.
 Require Import Lra.
 Require Import util.
@@ -4614,7 +4613,7 @@ Proof.
         apply Ropp_le_contravar.
         apply IZR_le.
         apply lt_IZR in n.
-        omega. }
+        lia. }
       setr (k + (- IZR (N + 1)) * PI).
       zltab. }
     match goal with | |- cos ?A <> 0 => estpid A end.
@@ -5073,10 +5072,10 @@ Proof.
       apply le_IZR in Nge0;
       apply Rge_le in r;
       apply le_IZR in r;
-      omega| apply Rnot_ge_lt in n].
+      lia| apply Rnot_ge_lt in n].
 
   destruct Req_EM_T; [exfalso; lra| clear n0].
-  assert (- N - 1 + 1 = - N)%Z as id. omega.
+  assert (- N - 1 + 1 = - N)%Z as id. lia.
   rewrite id, opp_IZR. clear id.
   
   match goal with | |- ?P = - ?Q => rdsk2t P Q end.
@@ -5101,13 +5100,13 @@ Proof.
       apply le_IZR in Nge0;
       apply Rge_le in r;
       apply le_IZR in r;
-      omega| apply Rnot_ge_lt in n].
+      lia| apply Rnot_ge_lt in n].
 
   destruct Req_EM_T; [clear e |exfalso; lra].
   specialize PI_RGT_0 as pigt0.
   destruct Rlt_dec; try lra.
 
-  assert (- N - 1 + 1 = - N)%Z as id. omega.
+  assert (- N - 1 + 1 = - N)%Z as id. lia.
   rewrite id, opp_IZR. clear id.
   
   fieldrewrite (PI / 2 - - IZR N * PI) (PI / 2 + IZR N * PI).
@@ -5481,13 +5480,13 @@ Qed.
              [lra| clear lb; intro lb].
            apply lt_IZR in ub.
            apply lt_IZR in lb.
-           omega.
+           lia.
        +++ clear - r n0.
            apply Rnot_ge_lt in n0.
            apply lt_IZR in n0.
            apply Rge_le in r.
            apply le_IZR in r.
-           omega.
+           lia.
        +++ apply Rnot_ge_lt in n0.
            assert (IZR (N+1) = 0) as n1z. {
              clear - n0 r.
@@ -5495,7 +5494,7 @@ Qed.
              apply Rge_le in r.
              apply le_IZR in r.
              apply IZR_eq.
-             omega. }
+             lia. }
            rewrite n1z in sl, sh.
            autorewrite with null in sl, sh.
            assert (2 / PI * (PI / 2) = 1) as id;
@@ -5532,7 +5531,7 @@ Qed.
            apply lt_IZR in aslt1.
            apply le_IZR in ann.
            clear - ann aslt1.
-           omega.
+           lia.
        +++ assert ((1 / 2 * PI * (s / l a)² - PI / 2)/PI < - IZR (N+1)) as lb. {
              rewrite (Rsqr_neg (s/ l a)).
              apply (Rmult_lt_reg_r PI); [assumption|].
@@ -5600,7 +5599,7 @@ Qed.
            rewrite <- opp_IZR in lb.
            apply lt_IZR in ub.
            apply lt_IZR in lb.
-           omega.
+           lia.
     ++ autorewrite with null.
        intro.
        apply n0.
@@ -5768,7 +5767,7 @@ Qed.
                lrag aub2. }
              apply lt_IZR in mlt.
              apply lt_IZR in mgt.
-             omega.
+             lia.
          +++ rewrite kdef, <- tid in alb2, aub2.
              assert (IZR (M+1) < 0) as mlt. {
                apply (Rmult_lt_reg_r PI).
@@ -5788,7 +5787,7 @@ Qed.
                lrag aub2. }
              apply lt_IZR in mlt.
              apply lt_IZR in mgt.
-             omega.
+             lia.
       ++ assert (1/2 * PI * (s / l a)² = PI/2 + IZR (-p) * PI) as id;
            [apply (Rplus_eq_reg_r (IZR p * PI));
             rewrite opp_IZR;
@@ -5818,7 +5817,7 @@ Qed.
         apply lt_IZR in n;
         apply Rgt_lt in p;
         apply lt_IZR in p;
-        omega |].
+        lia |].
 
       rewrite z in *.
       autorewrite with null in *.
@@ -5912,7 +5911,7 @@ Qed.
              assert (1 <= IZR p) as olep. {
                apply lt_IZR in pgt0.
                apply IZR_le.
-               omega. }
+               lia. }
              clear - olep alb2 pigt0 aub alb.
              assert (PI/2 <= k) as ctr. {
                apply (Rle_trans _ (PI)); [ lra|].
@@ -5938,7 +5937,7 @@ Qed.
                  lrag pub. }
                apply lt_IZR in pgtn1.
                apply IZR_le.
-               omega. }
+               lia. }
              clear aub2 aub pub.
              assert (PI <= k) as kub. {
                apply (Rplus_le_reg_r (-PI)).
@@ -6086,7 +6085,7 @@ Qed.
                lrag aub2. }
              apply lt_IZR in mlt.
              apply lt_IZR in mgt.
-             omega.
+             lia.
          +++ rewrite kdef, <- tid in alb2, aub2.
              assert (1 < IZR (M+1)) as mlt. {
                apply (Rmult_lt_reg_r PI).
@@ -6101,7 +6100,7 @@ Qed.
                lrag aub2. }
              apply lt_IZR in mlt.
              apply lt_IZR in mgt.
-             omega.
+             lia.
       ++ assert (1/2 * PI * (s / l a)² = PI/2 + IZR (-p) * PI) as id;
            [apply (Rplus_eq_reg_r (IZR p * PI));
             rewrite opp_IZR;
@@ -6182,7 +6181,7 @@ Qed.
       setr (IZR (N + 1) - IZR N). lra.
       rewrite <- minus_IZR.
       apply IZR_lt.
-      omega.
+      lia.
 
     + exfalso.
       apply Rnot_ge_lt in n.
@@ -6253,7 +6252,7 @@ Qed.
       setr (- IZR (N + 1 + 1)). lra.
       apply Ropp_le_contravar.
       apply IZR_le.
-      omega.
+      lia.
 
       apply (Rmult_le_reg_r (PI / 2)). lra.
       setl 0.
@@ -6267,7 +6266,7 @@ Qed.
       setr (- IZR (N + 1)). lra.
       apply Ropp_le_contravar.
       apply IZR_le.
-      omega.
+      lia.
 
       apply (Rmult_lt_reg_r (PI / 2)). lra.
       apply (Rplus_lt_reg_r (- k)).
@@ -6277,7 +6276,7 @@ Qed.
       setr (- IZR (N + 1)). lra.
       apply Ropp_lt_contravar.
       apply IZR_lt.
-      omega.
+      lia.
   Qed.
 
 
@@ -6311,7 +6310,7 @@ Qed.
       apply lt_IZR in n;
       apply Rgt_lt in p;
       apply lt_IZR in p;
-      omega |].
+      lia |].
     
     rewrite z in *.
     arn.
@@ -6375,7 +6374,7 @@ Qed.
       setr (IZR (N + 1) - IZR N). lra.
       rewrite <- minus_IZR.
       apply IZR_lt.
-      omega.
+      lia.
 
     + exfalso.
       apply Rnot_ge_lt in n.
@@ -6447,7 +6446,7 @@ Qed.
       setr (- IZR (N + 1 + 1)). lra.
       apply Ropp_le_contravar.
       apply IZR_le.
-      omega.
+      lia.
 
       apply (Rmult_le_reg_r (PI / 2)). lra.
       setl 0.
@@ -6461,7 +6460,7 @@ Qed.
       setr (- IZR (N + 1)). lra.
       apply Ropp_le_contravar.
       apply IZR_le.
-      omega.
+      lia.
 
       apply (Rmult_lt_reg_r (PI / 2)). lra.
       apply (Rplus_lt_reg_r (- k)).
@@ -6471,7 +6470,7 @@ Qed.
       setr (- IZR (N + 1)). lra.
       apply Ropp_lt_contravar.
       apply IZR_lt.
-      omega.
+      lia.
   Qed.
 
 
@@ -6504,7 +6503,7 @@ Qed.
       apply lt_IZR in n;
       apply Rgt_lt in p;
       apply lt_IZR in p;
-      omega |];
+      lia |];
     destruct Rlt_dec;
     [lra|  ].
     rewrite z in *.
@@ -6578,11 +6577,11 @@ Qed.
       apply lt_IZR in n0;
       apply Rgt_lt in p;
       apply lt_IZR in p;
-      omega |].
+      lia |].
     assert (IZR N = -1) as izrn. {
       apply IZR_eq.
       apply eq_IZR in z.
-      omega. }
+      lia. }
     destruct (Req_dec my 0).
     exfalso.
     apply nv.
@@ -6619,7 +6618,7 @@ Qed.
       rewrite <- mult_IZR, <- minus_IZR.
       apply IZR_lt.
       apply lt_IZR in nlt0.
-      omega.
+      lia.
 
     + match goal with | |- ?A < 0 => rdsk2t A A end.
       rewrite c1d.
@@ -6641,7 +6640,7 @@ Qed.
       lra.
       apply IZR_lt.
       apply lt_IZR in nlt0.
-      omega.
+      lia.
   Qed.
 
   Lemma spiral_N_neg1 : let s := estp (-1)%Z in s <= 0.
@@ -6699,7 +6698,7 @@ Qed.
       rewrite <- mult_IZR, <- plus_IZR.
       apply IZR_lt.
       apply lt_IZR in nlt0.
-      omega.
+      lia.
 
     + match goal with | |- 0 < ?A => rdsk2t A A end.
       rewrite c1d.
@@ -6861,16 +6860,16 @@ Qed.
       apply Rge_le in np1ge0.
       apply le_IZR in np1ge0.
       clear - nnge0 np1ge0.
-      omega. }
+      lia. }
     assert (0 = N + 1)%Z as zeq. {
-      omega. }
+      lia. }
 
     
     specialize (euler_tan_pt_symm _ np1ge0) as s1rs2.
     simpl in s1rs2.
     assert (- (N + 1) - 1 = N)%Z as zn. {
       rewrite ndef.
-      omega. }
+      lia. }
     rewrite zn in s1rs2. clear zn.
     change (s2 = - s1) in s1rs2.
     
@@ -7208,16 +7207,16 @@ Qed.
       apply Rge_le in np1ge0.
       apply le_IZR in np1ge0.
       clear - nnge0 np1ge0.
-      omega. }
+      lia. }
     assert (0 = N + 1)%Z as zeq. {
-      omega. }
+      lia. }
 
     
     specialize (euler_tan_pt_symm _ np1ge0) as s1rs2.
     simpl in s1rs2.
     assert (- (N + 1) - 1 = N)%Z as zn. {
       rewrite ndef.
-      omega. }
+      lia. }
     rewrite zn in s1rs2. clear zn.
     change (s2 = - s1) in s1rs2.
     
@@ -7469,7 +7468,7 @@ Qed.
     rewrite <- signeqm1_eqv in s2lt0.
     assert (IZR N < -1) as N1ltm1.
     apply lt_IZR in Np1ltn1.
-    apply IZR_lt. omega.
+    apply IZR_lt. lia.
     specialize (spiral_N_neg N N1ltm1) as s1lt0;
       change (s1 < 0) in s1lt0.
     rewrite <- signeqm1_eqv in s1lt0.
@@ -7511,7 +7510,7 @@ Qed.
           apply (Rmult_le_reg_r (/ PI));
           [zltab|
            setl (IZR (N + 1 + 1));
-           [lra| arn; apply IZR_le; omega];
+           [lra| arn; apply IZR_le; lia];
            assumption]|
           assumption]|
        apply (Rplus_le_reg_r (IZR (N + 1) * PI));
@@ -7521,7 +7520,7 @@ Qed.
         apply (Rmult_le_reg_r (/ PI));
         [zltab|
          setl (IZR (N + 1));
-         [lra| arn; apply IZR_le; omega];
+         [lra| arn; apply IZR_le; lia];
          assumption]|
         assumption]].
 
@@ -7605,7 +7604,7 @@ Qed.
     rewrite <- signeqm1_eqv in s2lt0.
     assert (IZR N < -1) as N1ltm1.
     apply le_IZR in Np1ltn1.
-    apply IZR_lt. omega.
+    apply IZR_lt. lia.
     specialize (spiral_N_neg N N1ltm1) as s1lt0;
       change (s1 < 0) in s1lt0.
     rewrite <- signeqm1_eqv in s1lt0.
@@ -7647,7 +7646,7 @@ Qed.
           apply (Rmult_le_reg_r (/ PI));
           [zltab|
            setl (IZR (N + 1 + 1));
-           [lra| arn; apply IZR_le; omega];
+           [lra| arn; apply IZR_le; lia];
            assumption]|
           assumption]|
        apply (Rplus_le_reg_r (IZR (N + 1) * PI));
@@ -7657,7 +7656,7 @@ Qed.
         apply (Rmult_le_reg_r (/ PI));
         [zltab|
          setl (IZR (N + 1));
-         [lra| arn; apply IZR_le; omega];
+         [lra| arn; apply IZR_le; lia];
          assumption]|
         assumption]].
 
@@ -7729,7 +7728,7 @@ Qed.
     rewrite <- signeqm1_eqv in s2lt0.
     assert (IZR N < -1) as N1ltm1.
     apply lt_IZR in Np1ltn1.
-    apply IZR_lt. omega.
+    apply IZR_lt. lia.
     specialize (spiral_N_neg N N1ltm1) as s1lt0;
       change (s1 < 0) in s1lt0.
     rewrite <- signeqm1_eqv in s1lt0.
@@ -7761,7 +7760,7 @@ Qed.
          apply (Rmult_le_reg_r (/ PI));
          [zltab|
           setl (IZR (N + 1 + 1));
-          [lra| arn; apply IZR_le; omega]]|
+          [lra| arn; apply IZR_le; lia]]|
          lra]
        |apply (Rplus_le_reg_r (IZR (N + 1) * PI));
         setr (PI/2); arn;
@@ -7770,7 +7769,7 @@ Qed.
          apply (Rmult_le_reg_r (/ PI));
          [zltab|
           setl (IZR (N + 1));
-          [lra| arn; apply IZR_le; omega];
+          [lra| arn; apply IZR_le; lia];
           assumption]|
          lra]].
 
@@ -7855,7 +7854,7 @@ Qed.
     rewrite <- signeqm1_eqv in s2lt0.
     assert (IZR N < -1) as N1ltm1.
     apply le_IZR in Np1ltn1.
-    apply IZR_lt. omega.
+    apply IZR_lt. lia.
     specialize (spiral_N_neg N N1ltm1) as s1lt0;
       change (s1 < 0) in s1lt0.
     rewrite <- signeqm1_eqv in s1lt0.
@@ -7887,7 +7886,7 @@ Qed.
          apply (Rmult_le_reg_r (/ PI));
          [zltab|
           setl (IZR (N + 1 + 1));
-          [lra| arn; apply IZR_le; omega]]|
+          [lra| arn; apply IZR_le; lia]]|
          lra]
        |apply (Rplus_le_reg_r (IZR (N + 1) * PI));
         setr (PI/2); arn;
@@ -7896,7 +7895,7 @@ Qed.
          apply (Rmult_le_reg_r (/ PI));
          [zltab|
           setl (IZR (N + 1));
-          [lra| arn; apply IZR_le; omega];
+          [lra| arn; apply IZR_le; lia];
           assumption]|
          lra]].
 
@@ -8010,13 +8009,13 @@ Qed.
       apply eq_IZR in Neq0.
       apply Rle_ge.
       apply IZR_le.
-      omega.
+      lia.
     + apply Rnot_ge_lt in n.
       destruct (Req_dec (IZR N) (-1)) as [Neqn1 |Nnen1].
       assert (IZR (N + 1) >= 0) as np1ge0. {
         apply eq_IZR in Neqn1.
         apply IZR_ge.
-        omega. }
+        lia. }
       apply (sf_2deriv_sign_midarm _ n np1ge0).
       destruct (Req_dec (IZR N) (-2)) as [Neqn2 |Nnen2].
       destruct (Req_dec s2 0) as [s2eq0 |s2ne0];
@@ -8030,7 +8029,7 @@ Qed.
          apply lt_IZR in n0.
          apply eq_IZR in Neqn2.
          exfalso.
-         omega.
+         lia.
       ++ destruct (Rlt_dec (IZR (N + 1)) (-1)).
          apply sf_2deriv_sign_N1ltn1; try assumption.
          apply Rnot_lt_le in n0.
@@ -8045,7 +8044,7 @@ Qed.
            lra. }
          apply lt_IZR in n.
          apply le_IZR in n0.
-         omega.
+         lia.
   Qed.
 
   (* begin hide *)
@@ -8486,7 +8485,7 @@ Qed.
       ++ destruct nod as [b Nd].
          rewrite cos_neg, <- (Rplus_0_l (IZR (N + 1) * PI)) in coseq0.
          rewrite Nd in coseq0.
-         assert (2 * b + 1 + 1 = 2 * (b + 1))%Z as id. omega. rewrite id in coseq0. clear id.
+         assert (2 * b + 1 + 1 = 2 * (b + 1))%Z as id. lia. rewrite id in coseq0. clear id.
          rewrite mult_IZR, cos_period1, cos_0 in coseq0.
          lra.
          
@@ -8662,7 +8661,7 @@ Qed.
       ++ destruct nod as [b Nd].
          rewrite cos_neg, <- (Rplus_0_l (IZR (N + 1) * PI)) in coseq0.
          rewrite Nd in coseq0.
-         assert (2 * b + 1 + 1 = 2 * (b + 1))%Z as id. omega. rewrite id in coseq0. clear id.
+         assert (2 * b + 1 + 1 = 2 * (b + 1))%Z as id. lia. rewrite id in coseq0. clear id.
          rewrite mult_IZR, cos_period1, cos_0 in coseq0.
          lra.
          
@@ -9988,7 +9987,7 @@ Qed.
     apply IZR_le.
     apply eq_IZR in Neqn1.
     rewrite Neqn1.
-    omega.
+    lia.
     
     specialize (rwa ineq).
     simpl in rwa.
@@ -10210,7 +10209,7 @@ Qed.
     rewrite <- opp_IZR.
     apply IZR_le.
     apply eq_IZR in Neqn1.
-    omega.
+    lia.
     
     specialize (rwa ineq).
     simpl in rwa.
@@ -10819,7 +10818,7 @@ Qed.
     rewrite <- opp_IZR.
     apply IZR_le.
     apply lt_IZR in Nlt0.
-    omega.
+    lia.
     
     specialize (rwa ineq).
     simpl in rwa.
@@ -11048,7 +11047,7 @@ Qed.
     rewrite <- opp_IZR.
     apply IZR_le.
     apply lt_IZR in Nlt0.
-    omega.
+    lia.
     
     specialize (rwa ineq).
     simpl in rwa.
@@ -11447,7 +11446,7 @@ Qed.
     rewrite <- mult_IZR, <- plus_IZR.
     apply IZR_le.
     apply lt_IZR in Nlt0.
-    omega.
+    lia.
     specialize (rwa ineq).
     simpl in rwa.
     rewrite RmultRinv in d2s.
@@ -11553,7 +11552,7 @@ Qed.
     rewrite <- mult_IZR, <- plus_IZR.
     apply IZR_le.
     apply lt_IZR in Nlt0.
-    omega.
+    lia.
     specialize (rwa ineq).
     simpl in rwa.
     rewrite RmultRinv in d2s.

@@ -6,7 +6,6 @@ Require Import Lia.
 Require Import ProofIrrelevance.
 Require Import Eqdep.
 Require Import Coquelicot.Coquelicot.
-Require Import Omega.
 Require Import util.
 Import EqNotations.
 Import Lra.
@@ -371,7 +370,7 @@ Proof.
                (x + 2 * (IZR (Z.pos p) + IZR (Z.neg p)) * PI).
   rewrite <- plus_IZR_NEG_POS.
   rewrite <- Pos2Z.opp_pos.
-  assert (((Z.pos p + - Z.pos p) = 0)%Z). omega.
+  assert (((Z.pos p + - Z.pos p) = 0)%Z). lia.
   rewrite H.
   fieldrewrite (x + 2 * 0 * PI) x. reflexivity.
 Qed.
@@ -393,7 +392,7 @@ Proof.
                (x + 2 * (IZR (Z.pos p) + IZR (Z.neg p)) * PI).
   rewrite <- plus_IZR_NEG_POS.
   rewrite <- Pos2Z.opp_pos.
-  assert (((Z.pos p + - Z.pos p) = 0)%Z). omega.
+  assert (((Z.pos p + - Z.pos p) = 0)%Z). lia.
   rewrite H.
   fieldrewrite (x + 2 * 0 * PI) x. reflexivity.
 Qed.
@@ -806,7 +805,7 @@ Proof.
   rewrite Rplus_comm.
   rewrite <- plus_IZR_NEG_POS.
   assert ((Z.pos (p + 1) + Z.neg (p + 1) = 0)%Z).
-  rewrite <- Pos2Z.opp_neg. omega.
+  rewrite <- Pos2Z.opp_neg. lia.
   rewrite H0. reflexivity.
   fieldrewrite (θ + 2 * IZR (Z.neg (p + 1)) * PI +
                 2 * INR (Pos.to_nat (p + 1)) * PI)
@@ -825,7 +824,7 @@ Proof.
   rewrite Rplus_comm.
   rewrite <- plus_IZR_NEG_POS.
   assert ((Z.pos (p + 1) + Z.neg (p + 1) = 0)%Z).
-  rewrite <- Pos2Z.opp_neg. omega.
+  rewrite <- Pos2Z.opp_neg. lia.
   rewrite H1. reflexivity.
   fieldrewrite (θ + 2 * IZR (Z.neg (p + 1)) * PI +
                 2 * INR (Pos.to_nat (p + 1)) * PI)
@@ -2214,7 +2213,7 @@ Proof.
   assert ((k <= 0)%Z) as kle0.
   rewrite <- (Z.lt_succ_r k 0). unfold Z.succ.
   assumption.
-  omega.
+  lia.
 
   apply Z.gt_lt in zgtk.
 
@@ -2228,11 +2227,11 @@ Proof.
 
   assert ((k <= -1)%Z) as kle0.
   rewrite <- (Z.lt_succ_r k (-1)). unfold Z.succ.
-  omega.
+  lia.
 
   assert ((-1 < k)%Z).
   apply lt_IZR. assumption.
-  omega.
+  lia.
 
   rewrite <- e in xdef.
   assert (x = 0) as xeq0. rewrite xdef.
