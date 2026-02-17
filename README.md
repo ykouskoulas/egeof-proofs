@@ -1,14 +1,45 @@
-* What this is
+# Predictive selection of trajectories for autonomous, fast-moving
+  aircraft for guaranteed avoidance of collision with geofence
+  boundaries
 
-These proofs formalize safety analysis that determines whether
-a horizontal turn with linearly varying centripetal acceleration
-collides with a linear boundary.
+## What is this?
 
-* Documentation
+This repostory contains a peer-reviewed publication describing a new
+collision avoidance algorithm that accounts for realistic turning
+dynamics to help fast moving fixed-wing aircraft avoid virtual
+walls. The paper includes flight testing results, and the repository
+includes a series of machine checked proofs that guarantee the safety
+and correctness of the approach.
+
+## Documentation
+
+The paper is titled
+
+*"Good Fences Make Good Neighbors: Using Formally Verified Safe
+Trajectories to Design a Predictive Geofence Algorithm"*
+
+and was presented at the NASA Formal Methods Conference in 2021. 
+
+Abstract:
+
+For AI-controlled mobile platforms, avoiding collisions with
+walls and boundaries is an important safety requirement. This is a prob-
+lem especially for fast-moving aerial vehicles, such as ﬁxed-wing aircraft,
+that cannot be brought to a stop in an emergency. To enable geographic
+conﬁnement of such AI-controlled vehicles, we present a formally veriﬁed
+algorithm for predicting geofence violations and selecting a safe maneu-
+ver that will keep the vehicle within the designated operations area. The
+algorithm is based on a higher-order dynamics model that generalizes
+circular turns using linearly changing centripetal acceleration and allows
+handling of uncertainty in model parameters. The proposed algorithm
+was implemented along with extensions to handle non-determinism, and
+ﬂight-tested on an autonomous aircraft.
+
+## Documentation
 
 In the doc folder
 
-* Dependencies
+## Dependencies
 
 Proofs were developed with the Coq proof assistant and the Coquelicot
 real library.
@@ -18,30 +49,37 @@ opam package manager.
 
 First use the package manager on your system to install opam, e.g.
 
+``
 $ sudo apt-get install opam
+```
 
 In some environments (e.g. if opam is already on your system)
 it might be necessary to 
 
+```
 $ opam init
 
 $ opam init env
+```
 
 Then you can install coq and coquelicot, letting opam handle
 dependencies:
 
+```
 $ opam repo add coq-released https://coq.inria.fr/opam/released
 
 $ opam install coq
 
 $ opam install coq-coquelicot
+```
 
-* Formal verification/code generation
+## To build and check documentation, proofs, and generate certified code
 
 The following commands check the proofs, extracts the core function
 that analyzes safety, and generates documentation suitable for use
 during certification:
 
+```
 $ date
 Thu Apr  9 01:22:07 EDT 2020
 
@@ -105,5 +143,12 @@ coqdoc -g -utf8 egeof.v
 real	0m46.133s
 user	0m43.950s
 sys	0m1.366s
+```
 
 You can Print Assumptions to see axioms of the development.
+
+## About me
+
+Work/projects: www.linkedin.com/in/ykouskoulas
+Publications:  orcid.org/0000-0001-7347-7473
+This repo:     github.com/ykouskoulas/egeof-proofs
