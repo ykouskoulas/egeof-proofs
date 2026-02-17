@@ -34,9 +34,8 @@ parameters. The proposed algorithm was implemented along with
 extensions to handle non-determinism, and ﬂight-tested on an
 autonomous aircraft.
 
-## Documentation
-
-In the doc folder
+Theorems and lemmas are formatted for easy readability in the doc
+folder.
 
 ## Dependencies
 
