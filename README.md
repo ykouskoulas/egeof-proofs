@@ -1,6 +1,4 @@
-# Predictive selection of trajectories for autonomous, fast-moving
-  aircraft for guaranteed avoidance of collision with geofence
-  boundaries
+# Predictive selection of trajectories for autonomous, fast-moving aircraft for guaranteed avoidance of collision with geofence boundaries
 
 ## What is this?
 
@@ -22,18 +20,19 @@ and was presented at the NASA Formal Methods Conference in 2021.
 
 Abstract:
 
-For AI-controlled mobile platforms, avoiding collisions with
-walls and boundaries is an important safety requirement. This is a prob-
-lem especially for fast-moving aerial vehicles, such as ﬁxed-wing aircraft,
-that cannot be brought to a stop in an emergency. To enable geographic
-conﬁnement of such AI-controlled vehicles, we present a formally veriﬁed
-algorithm for predicting geofence violations and selecting a safe maneu-
-ver that will keep the vehicle within the designated operations area. The
-algorithm is based on a higher-order dynamics model that generalizes
-circular turns using linearly changing centripetal acceleration and allows
-handling of uncertainty in model parameters. The proposed algorithm
-was implemented along with extensions to handle non-determinism, and
-ﬂight-tested on an autonomous aircraft.
+For AI-controlled mobile platforms, avoiding collisions with walls and
+boundaries is an important safety requirement. This is a problem
+especially for fast-moving aerial vehicles, such as ﬁxed-wing
+aircraft, that cannot be brought to a stop in an emergency. To enable
+geographic conﬁnement of such AI-controlled vehicles, we present a
+formally veriﬁed algorithm for predicting geofence violations and
+selecting a safe maneuver that will keep the vehicle within the
+designated operations area. The algorithm is based on a higher-order
+dynamics model that generalizes circular turns using linearly changing
+centripetal acceleration and allows handling of uncertainty in model
+parameters. The proposed algorithm was implemented along with
+extensions to handle non-determinism, and ﬂight-tested on an
+autonomous aircraft.
 
 ## Documentation
 
@@ -49,7 +48,7 @@ opam package manager.
 
 First use the package manager on your system to install opam, e.g.
 
-``
+```
 $ sudo apt-get install opam
 ```
 
@@ -149,6 +148,8 @@ You can Print Assumptions to see axioms of the development.
 
 ## About me
 
-Work/projects: www.linkedin.com/in/ykouskoulas
-Publications:  orcid.org/0000-0001-7347-7473
-This repo:     github.com/ykouskoulas/egeof-proofs
+Work/projects: https://www.linkedin.com/in/ykouskoulas
+
+Publications:  https://orcid.org/0000-0001-7347-7473
+
+This repo:     https://github.com/ykouskoulas/egeof-proofs
