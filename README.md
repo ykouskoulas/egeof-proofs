@@ -1,4 +1,4 @@
-# Predictive selection of trajectories for autonomous, fast-moving aircraft for guaranteed avoidance of collision with geofence boundaries
+# Selecting trajectories for avoiding collision with geofence boundaries during autonomous flight
 
 ## What is this?
 
